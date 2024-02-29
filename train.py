@@ -42,6 +42,15 @@ dataset_sizes = {
 
 
 def text_encoder(source_prompts, source_tokenized_prompts, clip_model):
+    """
+    :param source_prompts:
+    :param source_tokenized_prompts:
+    :param clip_model:
+    :return:
+    该text-encoder函数来自CLIP类的encode_text方法
+    https://blog.csdn.net/m0_47623548/article/details/123056243
+    """
+    # (batch, n_cls, n_ctx, dim)
     x = source_prompts + clip_model.positional_embedding.type(clip_model.dtype)
     x = x.permute(0, 2, 1, 3)  # NLD -> LND
     for j in range(len(x)):
@@ -70,6 +79,10 @@ def compute_text_features(prompts, source_prefix, source_suffix, source_tokenize
 
 
 def ema(source, target, decay):
+    """
+    指数移动平均，将source模型中的参数更新至target模型中
+    即在stage 2中初始化目标域生成器参数
+    """
     source_dict = source.state_dict()
     target_dict = target.state_dict()
     for key in source_dict.keys():
@@ -79,6 +92,7 @@ def ema(source, target, decay):
 
 def train(args):
     if args.auto_compute:
+        # auto compute num of auto_layer_k and size
         args.auto_layer_k = int(2 * (2 * np.log2(dataset_sizes[args.source_model_type]) - 2) / 3)
         args.size = dataset_sizes[args.source_model_type]
 
@@ -103,29 +117,34 @@ def train(args):
     os.makedirs(ckpt_dir_g, exist_ok=True)
 
     # set seed after all networks have been initialized. Avoids change of outputs due to model changes.
+    # 确保每次运行实验时，生成的随机数序列都相同，从而保证实验的可重复性
     torch.manual_seed(args.seed1)
     torch.cuda.manual_seed_all(args.seed1)
     np.random.seed(args.seed1)
 
     # pre
     clip_model = clip_loss_models[args.clip_models[0]].model
-    n_dim = clip_model.ln_final.weight.shape[0]
-    if args.ctx_init != "":
+    n_dim = clip_model.ln_final.weight.shape[0]  # 512
+    if args.ctx_init != "":  # 如果提供了初始化字符串，重新计算n_ctx
         ctx_init = args.ctx_init.replace("_", " ")
         args.n_ctx = len(ctx_init.split(" "))
         prompt_prefix = ctx_init
     else:
-        prompt_prefix = " ".join(["X"] * args.n_ctx)
-    source_prompts = [prompt_prefix + " " + args.source_class]
-    target_prompts = [prompt_prefix + " " + args.target_class]
-    print("source prompts", source_prompts)
-    print("target prompts", target_prompts)
+        prompt_prefix = " ".join(["X"] * args.n_ctx)  # default n_ctx=4, prompt_prefix: "X X X X"
+    source_prompts = [prompt_prefix + " " + args.source_class]  # 源域prompts ['a photo of a photo']
+    target_prompts = [prompt_prefix + " " + args.target_class]  # 目标域prompts ['a photo of a disney']
     source_tokenized_prompts = torch.cat(
         [clip.tokenize(p) for p in source_prompts]).to(device)
+    # (1, 77) 'sot a photo of a photo eot' 在经过tokenize后为tensor [[49406, 320, 1125, 539, 320, 1125, 49407, etc]]
+    # 77是CLIP在tokenize方法中缺省的context_length，超过context_length将被truncate，不足的将用0补齐
     target_tokenized_prompts = torch.cat(
         [clip.tokenize(p) for p in target_prompts]).to(device)
+    # (1, 77) 'sot a photo of a disney' 在经过tokenize后为tensor [[49406, 320, 1125, 539, 320, 4696, 49407, etc]]
+    # 77是CLIP在tokenize方法中缺省的context_length，超过context_length将被truncate，不足的将用0补齐
     source_embedding = clip_model.token_embedding(source_tokenized_prompts).type(clip_model.dtype)
+    # (1, 77, 512) 其中512是CLIP中的n_dim，token_embedding层的词嵌入的维度
     target_embedding = clip_model.token_embedding(target_tokenized_prompts).type(clip_model.dtype)
+    # (1, 77, 512) 其中512是CLIP中的n_dim，token_embedding层的词嵌入的维度
     source_prefix = source_embedding[:, :1, :].detach()
     source_suffix = source_embedding[:, 1 + args.n_ctx:, :].detach()
     target_prefix = target_embedding[:, :1, :].detach()
@@ -134,13 +153,16 @@ def train(args):
     if args.run_stage1:
         # stage 1
         print("stage 1: training mapper")
-        mapper = latent_mappers.SingleMapper(args, n_dim)
+        mapper = latent_mappers.SingleMapper(args, n_dim)  # 有PixelNorm以及四层EqualLinear构成的Mapper
         m_optim = torch.optim.Adam(mapper.mapping.parameters(), lr=args.lr_mapper)
 
         for i in tqdm(range(args.iter_mapper)):
             mapper.train()
+            # Z空间到W空间的变换
             sample_z = mixing_noise(args.batch_mapper, 512, args.mixing, device)
+            # (batch_size, 512)
             sample_w = net.generator_frozen.style(sample_z)
+            # (batch_size, 512)
             prompts = torch.reshape(mapper(sample_w[0]), (args.batch_mapper, args.n_ctx, n_dim)).type(clip_model.dtype)
             source_text_features = compute_text_features(prompts, source_prefix, source_suffix,
                                                          source_tokenized_prompts,
@@ -149,8 +171,10 @@ def train(args):
                                                          target_tokenized_prompts,
                                                          clip_model, args.batch_mapper)
             with torch.no_grad():
-                imgs = net.generator_frozen(sample_z, input_is_latent=False, truncation=1, randomize_noise=True)[
-                    0].detach()
+                imgs = net.generator_frozen(sample_z,
+                                            input_is_latent=False,
+                                            truncation=1,
+                                            randomize_noise=True)[0].detach()
             loss = clip_loss_models[args.clip_models[0]].global_clip_loss(imgs, args.source_class, source_text_features,
                                                                           is_contrastive=1,
                                                                           logit_scale=clip_model.logit_scale,

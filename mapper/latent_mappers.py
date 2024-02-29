@@ -11,7 +11,7 @@ class Mapper(Module):
         super(Mapper, self).__init__()
 
         self.opts = opts
-        layers = [PixelNorm()]
+        layers = [PixelNorm()]  # 将每个点归一化（除以模长），避免输入noise的极端权重，改善稳定性
         style_dim = n_dim
 
         for i in range(3):

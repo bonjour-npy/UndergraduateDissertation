@@ -76,9 +76,9 @@ class SG2Generator(torch.nn.Module):
                 requires_grad(layer, True)
 
     def style(self, styles):
-        '''
+        """
         Convert z codes to w codes.
-        '''
+        """
         styles = [self.generator.style(s) for s in styles]
         return styles
 

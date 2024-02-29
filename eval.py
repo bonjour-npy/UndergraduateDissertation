@@ -42,7 +42,8 @@ def eval(args):
         sample = \
             generator_ema(sample_w, input_is_latent=True, truncation=args.sample_truncation, randomize_noise=False)[0]
         sample_src = \
-            generator_frozen(sample_w, input_is_latent=True, truncation=args.sample_truncation, randomize_noise=False)[0]
+            generator_frozen(sample_w, input_is_latent=True, truncation=args.sample_truncation, randomize_noise=False)[
+                0]
 
     grid_rows = int(args.n_sample ** 0.5)
     save_images(sample, sample_dir, "iter", grid_rows, 300)

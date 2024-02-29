@@ -420,7 +420,7 @@ class Generator(nn.Module):
                 )
             )
 
-        self.style = nn.Sequential(*layers)  #
+        self.style = nn.Sequential(*layers)
         #####################################################
         self.channels = {
             4: 512,
