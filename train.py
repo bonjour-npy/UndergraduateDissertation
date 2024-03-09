@@ -73,7 +73,7 @@ def text_encoder(source_prompts, source_tokenized_prompts, clip_model):
 
 def compute_text_features(prompts, source_prefix, source_suffix, source_tokenized_prompts, clip_model, batch):
     """
-    :param prompts: 随机初始化的prompts的嵌入表示，(batch_size, n_ctx, n_dim)
+    :param prompts: Mapper生成的prompts的嵌入表示，(batch_size, n_ctx, n_dim)
     :param source_prefix: sot符号的嵌入表示，(1, 1, 512)
     :param source_suffix: eot符号及补足位的的嵌入表示，(1, 77-n_ctx-1, 512)
     :param source_tokenized_prompts: sot+人工初始化+域标签+eot，(1, 77) 只用于选中eot符号层，不参与特征的计算

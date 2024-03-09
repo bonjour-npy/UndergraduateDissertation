@@ -68,7 +68,7 @@ target_embedding = clip_model.token_embedding(target_tokenized_prompts).type(cli
 
 ### compute_text_features 的实现细节
 
-在 Mapper 生成 prompts 后进行 prompts 的
+在 Mapper 生成 prompts 后进行 prompts 的特征提取时，需要传入 tokenize 之后的人工初始化 prompt（‘a photo of a photo.’或‘a photo of a disney.’），用于选择 eot 符号对应的维度来进行特征投影（**因为 eot 作为整个句子的结尾，被认为该维度包含更多的信息**。具体做法：由于在 tokenize 之后，eot 符号对应的维度的值最大，因此可使用 argmax 来定位），以保证最后得到的特征形状与图像特征提取的输出形状相同，使得后续可以进行对比学习的损失计算。
 
 ### 训练 stage 1
 
@@ -116,7 +116,10 @@ Z 空间和 W 空间是 StyleGAN 模型中两种不同的隐变量空间，分�
 
 #### 损失函数
 
+在代码中，stage 1 的损失函数是 `global_clip_loss`，该损失由三部分组成：
 
+1. 对比学习损失：Mapper 生成的源域 prompts 的特征**（注意，这里的 prompts 特征是与人工初始化的 prompt （带源域标签）的特征做过 element-wise 相加后的特征）**与源域图像特征的余弦相似度组成的对比学习损失；
+2. 目标域正则化损失：Mapper 生成的目标域 prompts 的特征与目标域文本标签特征的余弦相似度，这里生成的目标域 prompts 特征同样也是与人工初始化的 prompts 做过加法的。注意该损失有权重 `lambda_l`。
 
 ### 训练 stage 2
 
