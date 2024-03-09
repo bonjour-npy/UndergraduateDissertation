@@ -310,7 +310,7 @@ class TrainOptions(object):
 
         self.parser.add_argument(
             '--run_stage1',
-            action="store_true",
+            action="store_true",  # 带这个参数就指定为True
             help="training mapper",
         )
 

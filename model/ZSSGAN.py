@@ -184,17 +184,17 @@ class ZSSGAN(torch.nn.Module):
 
         # Losses
         self.clip_loss_models = {model_name: CLIPLoss(self.device,
-                                                      lambda_direction=args.lambda_direction,
+                                                      lambda_direction=args.lambda_direction,  # directional CLIP loss
                                                       lambda_patch=args.lambda_patch,
                                                       lambda_global=args.lambda_global,
                                                       lambda_manifold=args.lambda_manifold,
                                                       lambda_texture=args.lambda_texture,
                                                       clip_model=model_name,
                                                       )
-                                 for model_name in args.clip_models}
+                                 for model_name in args.clip_models}  # default: ["ViT-B/32"]
 
         self.clip_model_weights = {model_name: weight for model_name, weight in
-                                   zip(args.clip_models, args.clip_model_weights)}
+                                   zip(args.clip_models, args.clip_model_weights)}  # default: [1.0]
 
         self.mse_loss = torch.nn.MSELoss()
 
@@ -213,12 +213,14 @@ class ZSSGAN(torch.nn.Module):
     def determine_opt_layers(self):
         '''
         decide layers to be optimized
+
         '''
 
         sample_z = torch.randn(self.args.auto_layer_batch, 512, device=self.device)
 
         initial_w_codes = self.generator_frozen.style([sample_z])
         initial_w_codes = initial_w_codes[0].unsqueeze(1).repeat(1, self.generator_frozen.generator.n_latent, 1)
+        # (auto_layer_batch, n_latent, 512)
 
         w_codes = torch.Tensor(initial_w_codes.cpu().detach().numpy()).to(self.device)
 
@@ -230,9 +232,11 @@ class ZSSGAN(torch.nn.Module):
             w_codes_for_gen = w_codes.unsqueeze(0)
 
             generated_from_w = self.generator_trainable(w_codes_for_gen, input_is_latent=True)[0]
+            # (batch_size, 3, 1024, 1024)
             w_loss = [self.clip_model_weights[model_name] * self.clip_loss_models[model_name].global_clip_loss(
                 generated_from_w, self.target_class) for model_name in self.clip_model_weights.keys()]
-            w_loss = torch.sum(torch.stack(w_loss))
+            # 计算目标域生成器生成的图片与目标域文本标签的global_clip_loss
+            w_loss = torch.sum(torch.stack(w_loss))  # 如果有多个loss，则stack后相加
 
             w_optim.zero_grad()
             w_loss.backward()
@@ -289,16 +293,15 @@ class ZSSGAN(torch.nn.Module):
         trainable_img = self.generator_trainable(w_styles, input_is_latent=True, truncation=truncation,
                                                  randomize_noise=randomize_noise)[0]
 
-        if need_loss is True:
-            clip_loss = torch.sum(torch.stack([self.clip_model_weights[model_name] *
-                                               self.clip_loss_models[model_name](
-                                                   frozen_img, self.source_class, trainable_img,
-                                                   self.target_class,
-                                                   source_delta_features=source_text_features,
-                                                   target_delta_features=target_text_features,
-                                                   templates=templates,
-                                               ) for model_name in self.clip_model_weights.keys()]))
-
+        if need_loss is True:  # default is true
+            clip_loss = torch.sum(torch.stack([self.clip_model_weights[model_name] * self.clip_loss_models[model_name](
+                frozen_img, self.source_class, trainable_img,
+                self.target_class,
+                source_delta_features=source_text_features,
+                target_delta_features=target_text_features,
+                templates=templates) for model_name in self.clip_model_weights.keys()]))
+            # 若有多个model，则有多个对应的CLIP Loss，在这里stack后再相加
+            # default clip loss is directional clip loss
             return [frozen_img, trainable_img], clip_loss
         else:
             return [frozen_img, trainable_img], 0

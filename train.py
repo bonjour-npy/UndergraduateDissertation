@@ -43,29 +43,47 @@ dataset_sizes = {
 
 def text_encoder(source_prompts, source_tokenized_prompts, clip_model):
     """
-    :param source_prompts:
-    :param source_tokenized_prompts:
+    :param source_prompts: W空间随机生成的n_ctx长度的prompts与前缀、后缀latent code的concat结果
+    :param source_tokenized_prompts: 人工输入prompts + 域标签的标记化结果 (1, 77)
     :param clip_model:
     :return:
     该text-encoder函数来自CLIP类的encode_text方法
     https://blog.csdn.net/m0_47623548/article/details/123056243
     """
-    # (batch, n_cls, n_ctx, dim)
-    x = source_prompts + clip_model.positional_embedding.type(clip_model.dtype)
+    x = source_prompts + clip_model.positional_embedding.type(clip_model.dtype)  # element-wise加法
     x = x.permute(0, 2, 1, 3)  # NLD -> LND
-    for j in range(len(x)):
-        x[j] = clip_model.transformer(x[j])
+    # (batch_size, 1, 77, n_dim) -> (batch_size, 77, 1, n_dim)
+    for j in range(len(x)):  # 每个batch
+        x[j] = clip_model.transformer(x[j])  # 为了满足Transformer对输入的要求：(seq_len, batch_size, n_dim)
     x = x.permute(0, 2, 1, 3)  # LND -> NLD
-    x = clip_model.ln_final(x).type(clip_model.dtype)
+    # (batch_size, 77, 1, n_dim) -> (batch_size, 1, 77, n_dim)
+    x = clip_model.ln_final(x).type(clip_model.dtype)  # layer normalization
+    """
+    text_projection: project the text embedding dimension to the dimension we get from the image encoder.
+    It's a nn.Parameter with shape (transformer_width, embed_dim)
+    x[:, torch.arange(x.shape[1]), source_tokenized_prompts.argmax(dim=-1)]: (batch_size, 1, n_dim)
+    text_projection is initialized by nn.init.normal_, with shape of (transformer_width, embed_dim)
+    """
     text_features = x[:, torch.arange(x.shape[1]), source_tokenized_prompts.argmax(dim=-1)] @ clip_model.text_projection
+    # 这里选择人工初始化的prompt的eot层作为随机初始化prompt特征投影的输入，意味着将随机初始化的prompt以人工初始化prompt为目标
+    # text_features = x[:, 1, source_tokenized_prompts.argmax(dim=-1)] @ clip_model.text_projection
 
-    return text_features
+    return text_features  # (batch_size, 1, n_dim)
 
 
 def compute_text_features(prompts, source_prefix, source_suffix, source_tokenized_prompts, clip_model, batch):
-    source_ctx = prompts.unsqueeze(1)
-    source_prefix = source_prefix.expand(batch, -1, -1, -1)
-    source_suffix = source_suffix.expand(batch, -1, -1, -1)
+    """
+    :param prompts: 随机初始化的prompts的嵌入表示，(batch_size, n_ctx, n_dim)
+    :param source_prefix: sot符号的嵌入表示，(1, 1, 512)
+    :param source_suffix: eot符号及补足位的的嵌入表示，(1, 77-n_ctx-1, 512)
+    :param source_tokenized_prompts: sot+人工初始化+域标签+eot，(1, 77) 只用于选中eot符号层，不参与特征的计算
+    :param clip_model:
+    :param batch:
+    :return:
+    """
+    source_ctx = prompts.unsqueeze(1)  # (batch_size, 1, n_ctx, n_dim)
+    source_prefix = source_prefix.expand(batch, -1, -1, -1)  # 对应维度复制输入参数的倍数，(batch_size, 1, 1, 512)
+    source_suffix = source_suffix.expand(batch, -1, -1, -1)  # 对应维度复制输入参数的倍数，(batch_size, 1, 77-n_ctx-1, 512)
     source_prompts = torch.cat(
         [
             source_prefix,  # (batch, n_cls, 1, dim)
@@ -74,7 +92,10 @@ def compute_text_features(prompts, source_prefix, source_suffix, source_tokenize
         ],
         dim=2,
     )
-    text_features = text_encoder(source_prompts, source_tokenized_prompts, clip_model)
+    # source_prompts：将随机初始化的嵌入表示与前缀（sot符号）、后缀（eot符号及n_ctx之后的补足位）的嵌入表示进行concat
+    # (batch_size, 1, 77, n_dim)
+    text_features = text_encoder(source_prompts, source_tokenized_prompts, clip_model)  # 返回随机初始化prompts的特征
+    # (batch_size, 1, n_dim)
     return text_features
 
 
@@ -140,42 +161,52 @@ def train(args):
     target_tokenized_prompts = torch.cat(
         [clip.tokenize(p) for p in target_prompts]).to(device)
     # (1, 77) 'sot a photo of a disney' 在经过tokenize后为tensor [[49406, 320, 1125, 539, 320, 4696, 49407, etc]]
-    # 77是CLIP在tokenize方法中缺省的context_length，超过context_length将被truncate，不足的将用0补齐
     source_embedding = clip_model.token_embedding(source_tokenized_prompts).type(clip_model.dtype)
-    # (1, 77, 512) 其中512是CLIP中的n_dim，token_embedding层的词嵌入的维度
+    # (1, 77, 512) 其中512是CLIP中token_embedding层的词嵌入的维度n_dim
     target_embedding = clip_model.token_embedding(target_tokenized_prompts).type(clip_model.dtype)
-    # (1, 77, 512) 其中512是CLIP中的n_dim，token_embedding层的词嵌入的维度
     source_prefix = source_embedding[:, :1, :].detach()
+    # 即sot符号在潜在空间的嵌入表示，(1, 1, n_dim)
     source_suffix = source_embedding[:, 1 + args.n_ctx:, :].detach()
+    # eot符号及补足位在潜在空间的嵌入表示，(1, 77-n_ctx-1, n_dim)
     target_prefix = target_embedding[:, :1, :].detach()
     target_suffix = target_embedding[:, 1 + args.n_ctx:, :].detach()
 
     if args.run_stage1:
         # stage 1
         print("stage 1: training mapper")
-        mapper = latent_mappers.SingleMapper(args, n_dim)  # 有PixelNorm以及四层EqualLinear构成的Mapper
+        mapper = latent_mappers.SingleMapper(args, n_dim)
+        # 由PixelNorm以及四层EqualLinear构成的Mapper，最终输出n_dim * n_ctx
         m_optim = torch.optim.Adam(mapper.mapping.parameters(), lr=args.lr_mapper)
 
-        for i in tqdm(range(args.iter_mapper)):
+        for i in tqdm(range(args.iter_mapper)):  # stage 1的每个epoch
             mapper.train()
-            # Z空间到W空间的变换
             sample_z = mixing_noise(args.batch_mapper, 512, args.mixing, device)
             # (batch_size, 512)
-            sample_w = net.generator_frozen.style(sample_z)
+            sample_w = net.generator_frozen.style(sample_z)  # Z空间到W空间的变换
             # (batch_size, 512)
             prompts = torch.reshape(mapper(sample_w[0]), (args.batch_mapper, args.n_ctx, n_dim)).type(clip_model.dtype)
+            # 通过W空间的随机分布初始化需要学习的prompts (batch_size, n_ctx, n_dim)
             source_text_features = compute_text_features(prompts, source_prefix, source_suffix,
                                                          source_tokenized_prompts,
                                                          clip_model, args.batch_mapper)
+            # 生成Prompt文字特征（无域标签）
+            """
+            输入分别是W空间随机初始化prompts的嵌入表示，sot与eot符号的嵌入表示，以及标记化之后的人工初始化prompts
+            在compute_text_features中最后一步使用text_projection进行投影的目的是为了与图像编码器的输出可以进行对比学习
+            text_features的形状：(batch_size, 1, n_dim)，最终获得的是每个图像对应的mapper通过随机分布生成的prompt的特征
+            """
             target_text_features = compute_text_features(prompts, target_prefix, target_suffix,
                                                          target_tokenized_prompts,
                                                          clip_model, args.batch_mapper)
             with torch.no_grad():
-                imgs = net.generator_frozen(sample_z,
+                imgs = net.generator_frozen(sample_z,  # 使用Z空间随机初始化向量生成图像
                                             input_is_latent=False,
                                             truncation=1,
                                             randomize_noise=True)[0].detach()
-            loss = clip_loss_models[args.clip_models[0]].global_clip_loss(imgs, args.source_class, source_text_features,
+                # (32, 3, 1024, 1024)
+            loss = clip_loss_models[args.clip_models[0]].global_clip_loss(img=imgs,
+                                                                          text=args.source_class,  # 源域标签str
+                                                                          delta_features=source_text_features,  # (batch_size, 1, n_dim)
                                                                           is_contrastive=1,
                                                                           logit_scale=clip_model.logit_scale,
                                                                           prompt_prefix=prompt_prefix,
@@ -183,22 +214,21 @@ def train(args):
                                                                           target_delta_features=target_text_features,
                                                                           lambda_l=args.lambda_l,
                                                                           lambda_src=args.lambda_src)
-
+            """
+            
+            """
             m_optim.zero_grad()
             clip_model.zero_grad()
             net.zero_grad()
             loss.backward()
             m_optim.step()
 
-        torch.save({
-            "m": mapper.state_dict(),
-            "m_optim": m_optim.state_dict(),
-        },
-            f"{ckpt_dir_m}/mapper.pt",
-        )
+        # stage 1的全部epoch结束后保存mapper的参数
+        torch.save({"m": mapper.state_dict(), "m_optim": m_optim.state_dict()},
+                   f"{ckpt_dir_m}/mapper.pt")
 
-    generator_ema = SG2Generator(args.frozen_gen_ckpt, img_size=args.size,
-                                 channel_multiplier=args.channel_multiplier).to(device)
+    generator_ema = (SG2Generator(args.frozen_gen_ckpt, img_size=args.size, channel_multiplier=args.channel_multiplier)
+                     .to(device))
     generator_ema.freeze_layers()
     generator_ema.eval()
 
@@ -225,15 +255,16 @@ def train(args):
 
         # Training loop
         fixed_z = torch.randn(args.n_sample, 512, device=device)  # random vectors
-
-        for i in tqdm(range(1, args.iter + 1)):
+        # n_sample: 35
+        for i in tqdm(range(1, args.iter + 1)):  # i starts with 1
 
             net.train()
-            sample_z = mixing_noise(args.batch, 512, args.mixing, device)
+            sample_z = mixing_noise(args.batch, 512, args.mixing, device)  # (batch_size, latent_dim)
 
             with torch.no_grad():
-                sample_w = net.generator_frozen.style(sample_z)
+                sample_w = net.generator_frozen.style(sample_z)  # 从Z空间到W空间
                 prompts = torch.reshape(mapper(sample_w[0]), (args.batch, args.n_ctx, n_dim)).type(clip_model.dtype)
+                # shape: (batch_size, n_ctx, n_dim)
                 source_text_features = compute_text_features(prompts, source_prefix, source_suffix,
                                                              source_tokenized_prompts, clip_model, args.batch)
                 target_text_features = compute_text_features(prompts, target_prefix, target_suffix,
@@ -243,6 +274,7 @@ def train(args):
                                                    source_text_features=source_text_features,
                                                    target_text_features=target_text_features,
                                                    templates=prompt_prefix)
+            # 这里的loss默认是clip_directional_loss: criteria.clip_loss.CLIPLoss.clip_directional_loss
 
             net.zero_grad()
             loss.backward()
