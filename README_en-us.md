@@ -31,5 +31,5 @@ Pretrained **source** StyleGAN2 generators can be downloaded (via [Google Drive]
 
 ## Details
 
-## Metrics
+## Quantitative Evaluation Metrics
 

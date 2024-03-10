@@ -149,4 +149,20 @@ if self.training and self.auto_layer_iters > 0:
 
 
 
-## 评价指标
+## 定量分析指标
+
+1. Inception Score（IS）
+
+   评估图像的质量和多样性
+
+2. Style Fréchet Inception Distance（SFID）
+
+   评估目标域的风格
+
+3. Structural Consistency Score（SCS）
+
+   评估图像的结构保存能力
+
+4. Identity Similarity（ID）
+
+   评估图像的特征保存能力
