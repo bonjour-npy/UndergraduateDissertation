@@ -385,8 +385,15 @@ class TrainOptions(object):
         self.parser.add_argument(
             "--n_generate",
             type=int,
-            default=30,
-            help="number of generated images to form evaluation dataset for quantitative analysis"
+            default=100,
+            help="number of generated images to form evaluation dataset for quantitative analysis per epoch"
+        )
+
+        self.parser.add_argument(
+            "--epochs_generate",
+            type=int,
+            default=50,
+            help="number of generated images to form evaluation dataset for quantitative analysis per epoch"
         )
 
         self.parser.add_argument(
