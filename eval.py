@@ -1,3 +1,11 @@
+"""
+photo to disney evaluation
+python eval.py --frozen_gen_ckpt ./pre_stylegan/stylegan2-ffhq-config-f.pt \
+                --adapted_gen_ckpt ./adapted_generator/ffhq/disney.pt \
+                --source_model_type "ffhq" \
+                --auto_compute \
+                --output_dir ./eval/disney
+"""
 import os
 import torch
 import numpy as np

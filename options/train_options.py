@@ -30,7 +30,7 @@ class TrainOptions(object):
         self.parser.add_argument(
             "--output_dir",
             type=str,
-            required=True,
+            required=False,
             help="Path to output directory",
         )
 
@@ -370,6 +370,35 @@ class TrainOptions(object):
             type=str,
             default="",
             help="initialization words"
+        )
+
+        #########################################
+        # Arguments for quantitative evaluation #
+        #########################################
+        self.parser.add_argument(
+            "--dataset_output_dir",
+            type=str,
+            default="./dataset/ipl",
+            help="output dir for evaluation dataset"
+        )
+
+        self.parser.add_argument(
+            "--n_generate",
+            type=int,
+            default=30,
+            help="number of generated images to form evaluation dataset for quantitative analysis"
+        )
+
+        self.parser.add_argument(
+            "--src_label",
+            type=str,
+            help="text label of source domain"
+        )
+
+        self.parser.add_argument(
+            "--tar_label",
+            type=str,
+            help="text label of target domain"
         )
 
     def parse(self):
