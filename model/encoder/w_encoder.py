@@ -1,7 +1,6 @@
-import math
 import torch
 from torch.nn import Conv2d, BatchNorm2d, PReLU, Sequential, Module
-from model.encoder_helpers import get_blocks, bottleneck_IR, bottleneck_IR_SE
+from model.encoders.encoder_helpers import get_blocks, bottleneck_IR, bottleneck_IR_SE
 from model.sg2_model import EqualLinear
 
 
@@ -28,8 +27,8 @@ class WEncoder(Module):
                                            bottleneck.depth,
                                            bottleneck.stride))
         self.body = Sequential(*modules)
-        log_size = int(math.log(opts.output_size, 2))
-        self.style_count = 2 * log_size - 2
+        # log_size = int(math.log(opts.output_size, 2))
+        # self.style_count = 2 * log_size - 2
 
     def forward(self, x):
         x = self.input_layer(x)
@@ -37,4 +36,5 @@ class WEncoder(Module):
         x = self.output_pool(x)
         x = x.view(-1, 512)
         x = self.linear(x)
-        return x.repeat(self.style_count, 1, 1).permute(1, 0, 2)
+        return x
+        # return x.repeat(self.style_count, 1, 1).permute(1, 0, 2)

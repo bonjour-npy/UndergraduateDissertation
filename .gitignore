@@ -1,7 +1,9 @@
 .idea
+pre_stylegan
+pretrained_models
 adapted_generator
 eval
 output
-pre_stylegan
+inference_output
 dataset
-desired_images
+desired_image
