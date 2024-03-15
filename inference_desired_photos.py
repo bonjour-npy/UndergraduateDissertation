@@ -1,6 +1,5 @@
 import os
 import torch
-import torchvision
 from torchvision import transforms
 from PIL import Image
 import tkinter as tk
@@ -70,19 +69,15 @@ def inference_desired_photos():
     generator_frozen.eval()
 
     restyle_ckpt_path = "pretrained_models/restyle_e4e_ffhq_encode.pt"
-    print(f"Loading pre-trained restyle encoder: {restyle_ckpt_path}\n")
     restyle_e4e, restyle_opts = load_e4e(restyle_ckpt_path,
                                          update_opts={"resize_outputs": True, "n_iters_per_batch": 5})
 
-    # Choose image from local
-    # image_path = "./desired_image/KobeBryant.jpg"
+    # 从本地选择图片
     # 创建一个tkinter窗口
     root = tk.Tk()
     root.withdraw()
     # 使用文件对话框选择本地文件夹
     image_path = filedialog.askopenfilename(title="select image file")
-    # 遍历文件夹中的图片文件
-    # image_path = "./desired_image/photo_0037.png"
 
     print(f"\nLoading image from {image_path}\n")
     image = Image.open(image_path).convert('RGB')
@@ -105,6 +100,21 @@ def inference_desired_photos():
         image_tar_path = os.path.join(output_dir, "target_image.jpg")
         save_generated_images(source_image, image_src_path, normalize=True)
         save_generated_images(target_image, image_tar_path, normalize=True)
+
+    # 调用系统应用显示图片
+    # 打开图片文件
+    img1 = Image.open(image_path)
+    img2 = Image.open(image_src_path)
+    img3 = Image.open(image_tar_path)
+    # 创建一个新的图片对象
+    new_img = Image.new('RGB', (img1.width + img2.width + img3.width, max(img1.height, img2.height, img3.height)))
+    # 将图片粘贴到新的图片对象中
+    new_img.paste(img1, (0, 0))
+    new_img.paste(img2, (img1.width, 0))
+    new_img.paste(img3, (img1.width + img2.width, 0))
+    # 显示图片
+    new_img.save(os.path.join(output_dir, f"{image_path.split('/')[-1].split('.')[0]}_comparison.jpg"))
+    new_img.show()
 
 
 if __name__ == "__main__":

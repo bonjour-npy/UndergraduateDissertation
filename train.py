@@ -1,4 +1,4 @@
-'''
+"""
 Example commands:
     CUDA_VISIBLE_DEVICES=0 python train.py  --frozen_gen_ckpt ./pre_stylegan/stylegan2-ffhq-config-f.pt \
                                             --source_model_type "ffhq" \
@@ -19,8 +19,7 @@ Example commands:
                                             --lr 0.002 \
                                             --iter 300 \
                                             --output_dir ./output/disney
-'''
-
+"""
 import os
 import numpy as np
 import torch

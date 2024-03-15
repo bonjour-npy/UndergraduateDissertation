@@ -166,3 +166,13 @@ if self.training and self.auto_layer_iters > 0:
 4. Identity Similarity（ID）
 
    评估图像的特征保存能力
+
+## 新增功能
+
+### 自定义图像风格迁移
+
+新增了自定义图像风格迁移功能。
+
+ [HyperStyle ](https://yuval-alaluf.github.io/hyperstyle/)中的 e4e encoder 将自定义的真实图像编码至 StyleGAN2 中的 W 空间生成 latent codes，再将其分别输入至源域生成器以及目标域生成器以代替原始的从正态分布中 sample 出的随机向量生成的 `w_codes`，从而得到相应的图片。其中 e4e encoder 来源于 HyperStyle 提供的预训练 checkpoint。
+
+使用方法：运行 `inference_desired_photos.py`，设置对应的参数，如生成器以及 e4e encoder 的路径、图像路径等，最后运行即可。
