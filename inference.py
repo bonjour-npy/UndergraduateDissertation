@@ -7,12 +7,26 @@ from tkinter import filedialog
 from argparse import Namespace
 from torchvision.utils import save_image as save_generated_images
 import warnings
+import dlib
 
 from model.ZSSGAN import SG2Generator
+from align_faces_parallel import align_face  # face alignment with FFHQ method (https://github.com/NVlabs/ffhq-dataset)
 from model.encoder.e4e import e4e
 
 warnings.filterwarnings("ignore")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def run_alignment(image_path):
+    if not os.path.exists("shape_predictor_68_face_landmarks.dat"):
+        print('Downloading files for aligning face image...')
+        os.system('wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2')
+        os.system('bzip2 -dk shape_predictor_68_face_landmarks.dat.bz2')
+        print('Done.')
+    predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+    aligned_image = align_face(filepath=image_path, predictor=predictor)
+    print("Aligned image has shape: {}".format(aligned_image.size))
+    return aligned_image
 
 
 def load_e4e(checkpoint_path, device=device, update_opts=None):
@@ -80,15 +94,17 @@ def inference_desired_photos():
     image_path = filedialog.askopenfilename(title="select image file")
 
     print(f"\nLoading image from {image_path}\n")
-    image = Image.open(image_path).convert('RGB')
-    transform_inference = transforms.Compose([transforms.Resize((256, 256)), transforms.ToTensor(),
+    image = run_alignment(image_path)
+    image.resize((256, 256))
+    transform_inference = transforms.Compose([transforms.Resize((256, 256)),
+                                              transforms.ToTensor(),
                                               transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
     with torch.no_grad():
-        image = transform_inference(image).cuda().unsqueeze(0)  # (1, 3, 256, 256)
+        transformed_image = transform_inference(image).cuda().unsqueeze(0)  # (1, 3, 256, 256)
         avg_image = get_average_image(restyle_e4e, restyle_opts)
-        avg_image = avg_image.unsqueeze(0).repeat(image.shape[0], 1, 1, 1)
-        x_input = torch.cat([image, avg_image], dim=1)  # (1, 6, 256, 256)
+        avg_image = avg_image.unsqueeze(0).repeat(transformed_image.shape[0], 1, 1, 1)
+        x_input = torch.cat([transformed_image, avg_image], dim=1)  # (1, 6, 256, 256)
         y_hat, latent = None, None
         y_hat, latent = restyle_e4e(x_input, latent=latent, randomize_noise=False, return_latents=True, resize=True)
         # latent: (1, 18, 512)
