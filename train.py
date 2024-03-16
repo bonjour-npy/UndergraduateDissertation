@@ -24,13 +24,14 @@ import os
 import numpy as np
 import torch
 from tqdm import tqdm
+import clip
+import warnings
+
 from model.ZSSGAN import ZSSGAN, SG2Generator
 from utils.file_utils import save_images
 from utils.training_utils import mixing_noise
 from mapper import latent_mappers
 from options.train_options import TrainOptions
-import clip
-import warnings
 
 warnings.filterwarnings("ignore")
 
@@ -205,7 +206,8 @@ def train(args):
                 # (32, 3, 1024, 1024)
             loss = clip_loss_models[args.clip_models[0]].global_clip_loss(img=imgs,
                                                                           text=args.source_class,  # 源域标签str
-                                                                          delta_features=source_text_features,  # (batch_size, 1, n_dim)
+                                                                          delta_features=source_text_features,
+                                                                          # (batch_size, 1, n_dim)
                                                                           is_contrastive=1,
                                                                           logit_scale=clip_model.logit_scale,
                                                                           prompt_prefix=prompt_prefix,
