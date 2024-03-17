@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 from model.sg2_model import Generator
-from model.encoder import restyle_e4e_encoders
+from model.encoder import fpn_encoders, restyle_psp_encoders
 
 model_paths = {
     # models for backbones and losses
@@ -35,6 +35,13 @@ model_paths = {
     'stylegan_sketch': 'pretrained_models/sketch.pt',
     'stylegan_disney': 'pretrained_models/disney_princess.pt'
 }
+
+# specify the encoder types for pSp and e4e - this is mainly used for the inference scripts
+ENCODER_TYPES = {
+    'pSp': ['GradualStyleEncoder', 'ResNetGradualStyleEncoder', 'BackboneEncoder', 'ResNetBackboneEncoder'],
+    'e4e': ['ProgressiveBackboneEncoder', 'ResNetProgressiveBackboneEncoder']
+}
+
 RESNET_MAPPING = {
     'layer1.0': 'body.0',
     'layer1.1': 'body.1',
@@ -55,9 +62,10 @@ RESNET_MAPPING = {
 }
 
 
-class e4e(nn.Module):
+class pSp(nn.Module):
+
     def __init__(self, opts):
-        super(e4e, self).__init__()
+        super(pSp, self).__init__()
         self.set_opts(opts)
         self.n_styles = int(math.log(self.opts.output_size, 2)) * 2 - 2
         # Define architecture
@@ -68,19 +76,23 @@ class e4e(nn.Module):
         self.load_weights()
 
     def set_encoder(self):
-        if self.opts.encoder_type == 'ProgressiveBackboneEncoder':
-            encoder = restyle_e4e_encoders.ProgressiveBackboneEncoder(50, 'ir_se', self.n_styles, self.opts)
-        elif self.opts.encoder_type == 'ResNetProgressiveBackboneEncoder':
-            encoder = restyle_e4e_encoders.ResNetProgressiveBackboneEncoder(self.n_styles, self.opts)
+        if self.opts.encoder_type == 'GradualStyleEncoder':
+            encoder = fpn_encoders.GradualStyleEncoder(50, 'ir_se', self.n_styles, self.opts)
+        elif self.opts.encoder_type == 'ResNetGradualStyleEncoder':
+            encoder = fpn_encoders.ResNetGradualStyleEncoder(self.n_styles, self.opts)
+        elif self.opts.encoder_type == 'BackboneEncoder':
+            encoder = restyle_psp_encoders.BackboneEncoder(50, 'ir_se', self.n_styles, self.opts)
+        elif self.opts.encoder_type == 'ResNetBackboneEncoder':
+            encoder = restyle_psp_encoders.ResNetBackboneEncoder(self.n_styles, self.opts)
         else:
             raise Exception(f'{self.opts.encoder_type} is not a valid encoders')
         return encoder
 
     def load_weights(self):
         if self.opts.checkpoint_path is not None:
-            print(f'Loading ReStyle e4e from checkpoint: {self.opts.checkpoint_path}')
+            print(f'Loading ReStyle pSp from checkpoint: {self.opts.checkpoint_path}')
             ckpt = torch.load(self.opts.checkpoint_path, map_location='cpu')
-            self.encoder.load_state_dict(self.__get_keys(ckpt, 'encoder'), strict=True)
+            self.encoder.load_state_dict(self.__get_keys(ckpt, 'encoder'), strict=False)
             self.decoder.load_state_dict(self.__get_keys(ckpt, 'decoder'), strict=True)
             self.__load_latent_avg(ckpt)
         else:
@@ -91,9 +103,9 @@ class e4e(nn.Module):
             self.decoder.load_state_dict(ckpt['g_ema'], strict=True)
             self.__load_latent_avg(ckpt, repeat=self.n_styles)
 
-    def forward(self, x, latent=None, resize=True, input_code=False, randomize_noise=True,
-                return_latents=False, average_code=False, input_is_full=False, return_codes=False):
-
+    def forward(self, x, return_codes=False, latent=None, resize=True, latent_mask=None, input_code=False,
+                randomize_noise=True, inject_latent=None, return_latents=False, alpha=None, average_code=False,
+                input_is_full=False):
         if input_code:
             codes = x
         else:
@@ -105,6 +117,16 @@ class e4e(nn.Module):
             else:
                 # first iteration is with respect to the avg latent code
                 codes = codes + self.latent_avg.repeat(codes.shape[0], 1, 1)
+
+        if latent_mask is not None:
+            for i in latent_mask:
+                if inject_latent is not None:
+                    if alpha is not None:
+                        codes[:, i] = alpha * inject_latent[:, i] + (1 - alpha) * codes[:, i]
+                    else:
+                        codes[:, i] = inject_latent[:, i]
+                else:
+                    codes[:, i] = 0
 
         if average_code:
             input_is_latent = True

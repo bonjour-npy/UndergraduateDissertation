@@ -10,7 +10,8 @@ import warnings
 import dlib
 
 from model.ZSSGAN import SG2Generator
-from utils.align_faces_parallel import align_face  # face alignment with FFHQ method (https://github.com/NVlabs/ffhq-dataset)
+from utils.align_faces_parallel import \
+    align_face  # face alignment with FFHQ method (https://github.com/NVlabs/ffhq-dataset)
 from model.encoder.e4e import e4e
 from model.encoder.psp import pSp
 
@@ -84,6 +85,7 @@ def run_loop(inputs, net, avg_image, n_iters=5):
             x_input = torch.cat([inputs, avg_image_for_batch], dim=1)
         else:
             x_input = torch.cat([inputs, y_hat], dim=1)
+        # x_input = inputs.repeat(1, 2, 1, 1)
 
         if not (iter == n_iters):  # 正常循环
             y_hat, latent = net.forward(x_input,
@@ -153,8 +155,12 @@ def inference():
         transformed_image = transform_inference(image).cuda()
         # avg_image = get_average_image(restyle_psp)
         # codes = run_loop(transformed_image.unsqueeze(0), restyle_psp, avg_image)
-        avg_image = get_average_image(restyle_psp)
-        codes = run_loop(transformed_image.unsqueeze(0), restyle_psp, avg_image)
+        avg_image_e4e = get_average_image(restyle_e4e)
+        avg_image_psp = get_average_image(restyle_psp)
+
+        codes_e4e = run_loop(transformed_image.unsqueeze(0), restyle_e4e, avg_image_e4e)
+        codes_psp = run_loop(transformed_image.unsqueeze(0), restyle_psp, avg_image_psp)
+        codes = codes_e4e * 0.9 + codes_psp * 0.1
         print(f"\nGenerating images to {output_dir}\n")
         # source_image = generator_frozen([codes], input_is_latent=True, truncation=0.7, randomize_noise=True)[0]
         # target_image = generator_ema([codes], input_is_latent=True, truncation=0.7, randomize_noise=True)[0]
