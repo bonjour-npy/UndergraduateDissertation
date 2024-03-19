@@ -80,7 +80,7 @@ class pSp(nn.Module):
             encoder = fpn_encoders.GradualStyleEncoder(50, 'ir_se', self.n_styles, self.opts)
         elif self.opts.encoder_type == 'ResNetGradualStyleEncoder':
             encoder = fpn_encoders.ResNetGradualStyleEncoder(self.n_styles, self.opts)
-        elif self.opts.encoder_type == 'BackboneEncoder':
+        elif self.opts.encoder_type == 'BackboneEncoder':  # pSp: pretrained_models/restyle_psp_ffhq_encode.pt
             encoder = restyle_psp_encoders.BackboneEncoder(50, 'ir_se', self.n_styles, self.opts)
         elif self.opts.encoder_type == 'ResNetBackboneEncoder':
             encoder = restyle_psp_encoders.ResNetBackboneEncoder(self.n_styles, self.opts)

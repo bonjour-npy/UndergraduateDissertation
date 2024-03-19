@@ -10,15 +10,17 @@ import warnings
 import dlib
 
 from model.ZSSGAN import SG2Generator
-from utils.align_faces_parallel import align_face  # face alignment with FFHQ method (https://github.com/NVlabs/ffhq-dataset)
+from utils.align_faces_parallel import \
+    align_face  # face alignment with FFHQ method (https://github.com/NVlabs/ffhq-dataset)
 from model.encoder.e4e import e4e
+from model.encoder.psp import pSp
 
 warnings.filterwarnings("ignore")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def run_alignment(image_path):
-    shape_predictor_path = "./pretrained_models/shape_predictor_68_face_landmarks.dat"
+    shape_predictor_path = "../pretrained_models/shape_predictor_68_face_landmarks.dat"
     if not os.path.exists(shape_predictor_path):
         print('Downloading files for aligning face image...')
         os.system('wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2')
@@ -31,18 +33,28 @@ def run_alignment(image_path):
     return aligned_image
 
 
-def load_e4e(checkpoint_path, device=device, update_opts=None):
+def load_psp(checkpoint_path, device=device):
     ckpt = torch.load(checkpoint_path, map_location=device)
 
     opts = ckpt['opts']
     opts['checkpoint_path'] = checkpoint_path
     opts['load_w_encoder'] = True
 
-    if update_opts is not None:
-        if type(update_opts) == dict:
-            opts.update(update_opts)
-        else:
-            opts.update(vars(update_opts))
+    opts = Namespace(**opts)
+
+    net = pSp(opts)
+    net.eval()
+    net.to(device)
+
+    return net
+
+
+def load_e4e(checkpoint_path, device=device):
+    ckpt = torch.load(checkpoint_path, map_location=device)
+
+    opts = ckpt['opts']
+    opts['checkpoint_path'] = checkpoint_path
+    opts['load_w_encoder'] = True
 
     opts = Namespace(**opts)
 
@@ -50,26 +62,61 @@ def load_e4e(checkpoint_path, device=device, update_opts=None):
     net.eval()
     net.to(device)
 
-    return net, opts
+    return net
 
 
-def get_average_image(net, opts):
+def get_average_image(net):
     avg_image = net(net.latent_avg.unsqueeze(0),
                     input_code=True,
                     randomize_noise=False,
                     return_latents=False,
                     average_code=True)[0]
     avg_image = avg_image.to('cuda').float().detach()
-    if "cars" in opts.dataset_type:
-        avg_image = avg_image[:, 32:224, :]
     return avg_image
 
 
-def inference_desired_photos():
+def run_loop(inputs, net, avg_image, n_iters=5):
+    y_hat, latent, codes = None, None, None
+    results_batch = {idx: [] for idx in range(inputs.shape[0])}
+    results_latent = {idx: [] for idx in range(inputs.shape[0])}
+    for iter in range(n_iters + 1):
+        if iter == 0:
+            avg_image_for_batch = avg_image.unsqueeze(0).repeat(inputs.shape[0], 1, 1, 1)
+            x_input = torch.cat([inputs, avg_image_for_batch], dim=1)
+        else:
+            x_input = torch.cat([inputs, y_hat], dim=1)
+        # x_input = inputs.repeat(1, 2, 1, 1)
+
+        if not (iter == n_iters):  # 正常循环
+            y_hat, latent = net.forward(x_input,
+                                        latent=latent,
+                                        randomize_noise=False,
+                                        return_latents=True,
+                                        resize=True)
+
+            # store intermediate outputs
+            for idx in range(inputs.shape[0]):
+                results_batch[idx].append(y_hat[idx])
+                results_latent[idx].append(latent[idx].cpu().numpy())
+
+            # resize input to 256 before feeding into next iteration
+            y_hat = net.face_pool(y_hat)
+        else:  # 直接返回codes
+            codes = net.forward(x_input,
+                                latent=latent,
+                                randomize_noise=False,
+                                return_latents=True,
+                                resize=True,
+                                return_codes=True)
+
+    return codes
+
+
+def inference():
     dataset_size = 1024  # args.size
 
     print(f"Checking directory.\n")
-    output_dir = "./inference_output"
+    output_dir = "../inference_output"
     os.makedirs(output_dir, exist_ok=True)
 
     adapted_gen_ckpt = "./adapted_generator/ffhq/disney.pt"
@@ -84,9 +131,10 @@ def inference_desired_photos():
     generator_frozen.freeze_layers()
     generator_frozen.eval()
 
-    restyle_ckpt_path = "pretrained_models/restyle_e4e_ffhq_encode.pt"
-    restyle_e4e, restyle_opts = load_e4e(restyle_ckpt_path,
-                                         update_opts={"resize_outputs": True, "n_iters_per_batch": 5})
+    restyle_psp_ckpt_path = "../pretrained_models/restyle_psp_ffhq_encode.pt"
+    restyle_e4e_ckpt_path = "../pretrained_models/restyle_e4e_ffhq_encode.pt"
+    restyle_psp = load_psp(restyle_psp_ckpt_path)
+    restyle_e4e = load_e4e(restyle_e4e_ckpt_path)
 
     # 从本地选择图片
     # 创建一个tkinter窗口
@@ -103,17 +151,21 @@ def inference_desired_photos():
                                               transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
     with torch.no_grad():
-        image = transform_inference(image).cuda().unsqueeze(0)  # (1, 3, 256, 256)
-        avg_image = get_average_image(restyle_e4e, restyle_opts)
-        avg_image = avg_image.unsqueeze(0).repeat(image.shape[0], 1, 1, 1)
-        x_input = torch.cat([image, avg_image], dim=1)  # (1, 6, 256, 256)
-        y_hat, latent = None, None
-        y_hat, latent = restyle_e4e(x_input, latent=latent, randomize_noise=False, return_latents=True, resize=True)
-        # latent: (1, 18, 512)
-        latent = latent.mean(dim=1)
+        # transformed_image = transform_inference(image).cuda().unsqueeze(0)  # (1, 3, 256, 256)
+        transformed_image = transform_inference(image).cuda()
+        # avg_image = get_average_image(restyle_psp)
+        # codes = run_loop(transformed_image.unsqueeze(0), restyle_psp, avg_image)
+        avg_image_e4e = get_average_image(restyle_e4e)
+        avg_image_psp = get_average_image(restyle_psp)
+
+        codes_e4e = run_loop(transformed_image.unsqueeze(0), restyle_e4e, avg_image_e4e)
+        codes_psp = run_loop(transformed_image.unsqueeze(0), restyle_psp, avg_image_psp)
+        codes = codes_e4e * 0.9 + codes_psp * 0.1
         print(f"\nGenerating images to {output_dir}\n")
-        source_image = generator_frozen(latent, input_is_latent=True, truncation=0.7, randomize_noise=False)[0]
-        target_image = generator_ema(latent, input_is_latent=True, truncation=0.7, randomize_noise=False)[0]
+        # source_image = generator_frozen([codes], input_is_latent=True, truncation=0.7, randomize_noise=True)[0]
+        # target_image = generator_ema([codes], input_is_latent=True, truncation=0.7, randomize_noise=True)[0]
+        target_image = generator_ema([codes], input_is_latent=True, randomize_noise=False)[0]
+        source_image = generator_frozen([codes], input_is_latent=True, randomize_noise=False)[0]
         image_src_path = os.path.join(output_dir, "source_image.jpg")
         image_tar_path = os.path.join(output_dir, "target_image.jpg")
         save_generated_images(source_image, image_src_path, normalize=True)
@@ -136,4 +188,4 @@ def inference_desired_photos():
 
 
 if __name__ == "__main__":
-    inference_desired_photos()
+    inference()

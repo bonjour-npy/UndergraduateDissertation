@@ -53,7 +53,7 @@ def inference_desired_photos():
     dataset_size = 1024  # args.size
 
     print(f"Checking directory.\n")
-    output_dir = "./inference_output"
+    output_dir = "../inference_output"
     os.makedirs(output_dir, exist_ok=True)
 
     adapted_gen_ckpt = "./adapted_generator/ffhq/disney.pt"
@@ -68,7 +68,7 @@ def inference_desired_photos():
     generator_frozen.freeze_layers()
     generator_frozen.eval()
 
-    restyle_ckpt_path = "pretrained_models/restyle_e4e_ffhq_encode.pt"
+    restyle_ckpt_path = "../pretrained_models/restyle_e4e_ffhq_encode.pt"
     restyle_e4e, restyle_opts = load_e4e(restyle_ckpt_path,
                                          update_opts={"resize_outputs": True, "n_iters_per_batch": 5})
 

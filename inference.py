@@ -131,7 +131,7 @@ def inference():
 
     restyle_psp_ckpt_path = "pretrained_models/restyle_psp_ffhq_encode.pt"
     restyle_e4e_ckpt_path = "pretrained_models/restyle_e4e_ffhq_encode.pt"
-    restyle_psp = load_psp(restyle_psp_ckpt_path)
+    # restyle_psp = load_psp(restyle_psp_ckpt_path)
     restyle_e4e = load_e4e(restyle_e4e_ckpt_path)
 
     # 从本地选择图片
@@ -149,15 +149,10 @@ def inference():
                                               transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
     with torch.no_grad():
-        # transformed_image = transform_inference(image).cuda().unsqueeze(0)  # (1, 3, 256, 256)
         transformed_image = transform_inference(image).cuda()
-        # avg_image = get_average_image(restyle_psp)
-        # codes = run_loop(transformed_image.unsqueeze(0), restyle_psp, avg_image)
-        avg_image = get_average_image(restyle_psp)
-        codes = run_loop(transformed_image.unsqueeze(0), restyle_psp, avg_image)
+        avg_image = get_average_image(restyle_e4e)
+        codes = run_loop(transformed_image.unsqueeze(0), restyle_e4e, avg_image)
         print(f"\nGenerating images to {output_dir}\n")
-        # source_image = generator_frozen([codes], input_is_latent=True, truncation=0.7, randomize_noise=True)[0]
-        # target_image = generator_ema([codes], input_is_latent=True, truncation=0.7, randomize_noise=True)[0]
         target_image = generator_ema([codes], input_is_latent=True, randomize_noise=False)[0]
         source_image = generator_frozen([codes], input_is_latent=True, randomize_noise=False)[0]
         image_src_path = os.path.join(output_dir, "source_image.jpg")
