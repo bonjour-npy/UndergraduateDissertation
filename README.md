@@ -118,7 +118,7 @@ Z 空间和 W 空间是 StyleGAN 模型中两种不同的隐变量空间，分�
 
 在代码中，stage 1 的损失函数是 `global_clip_loss`，该损失由三部分组成：
 
-1. 对比学习损失：Mapper 生成的源域 prompts 的特征**（注意，这里的 prompts 特征是与人工初始化的 prompt （带源域标签）的特征做过 element-wise 相加后的特征）**与源域图像特征的余弦相似度组成的对比学习损失；
+1. 对比学习损失：Mapper 生成的源域 prompts 的特征**（注意，这里的 prompts 特征是与人工初始化的 prompts 的特征做过 element-wise 相加后的特征）**与源域图像特征的余弦相似度组成的对比学习损失；
 2. 目标域正则化损失：Mapper 生成的目标域 prompts 的特征与目标域文本标签特征的余弦相似度，这里生成的目标域 prompts 特征同样也是与人工初始化的 prompts 做过加法的。注意该损失有权重 `lambda_l`。
 
 ### 训练 stage 2
@@ -147,7 +147,10 @@ if self.training and self.auto_layer_iters > 0:
 
 #### 损失函数
 
+stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损失函数由两部分组成：
 
+1. `edit_direciton`：源域生成器与目标域生成器生成的图片在经过 image encdoer 后做 element-wise 的相减，最后除以自身的 L2 Norm 方便后续与 target_direction 计算余弦相似度
+2. `target_direction`：Mapper 产生的源域和目标域 prompts 的 text_features 做element-wise相减后，最后初一自身的 L2 Norm 以便后续与 edit_direction 计算余弦相似度
 
 ## 定量分析指标
 
@@ -175,4 +178,24 @@ if self.training and self.auto_layer_iters > 0:
 
  [HyperStyle ](https://yuval-alaluf.github.io/hyperstyle/)中的 e4e encoder 将自定义的真实图像编码至 StyleGAN2 中的 W 空间生成 latent codes，再将其分别输入至源域生成器以及目标域生成器以代替原始的从正态分布中 sample 出的随机向量生成的 `w_codes`，从而得到相应的图片。其中 e4e encoder 来源于 HyperStyle 提供的预训练 checkpoint。
 
-使用方法：运行 `inference_desired_photos.py`，设置对应的参数，如生成器以及 e4e encoder 的路径、图像路径等，最后运行即可。
+使用方法：运行 `inference.py`，设置对应的参数，如生成器以及 e4e encoder 的路径、图像路径等，最后运行即可。
+
+#### 修改日志
+
+1. 第一次尝试只加载了 `w_encoder` 类及其对应 checkpoint 参数，导致并未将真实图片编码到 StyleGAN 的 W 空间中
+2. 第二次尝试
+
+## 问题提出与改进
+
+### 训练阶段人工 prompts 的作用是什么？
+
+#### 作用
+
+1. 人工设计的 prompts 在计算 `text_features` 时用于定位 `eot` 层符号所表示的维度来进行投影，但不参与 `text_features` 的实际计算
+2. 在训练 Mapper 的 stage 1 的损失函数中，在计算对比损失函数时，Mapper 学习到的 prompts 的文字特征特征会与人工设计的 prompts 的文字特征进行 element-wise 的相加，最后再与 源域生成器得到的图片的图像特征进行对比损失计算
+
+#### 思考
+
+IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 prompts 学习到源域图片的特征以及（2）使用域正则化使得 prompts 向目标域标签对齐之外，并没有使用其他与人工设计的 prompts 有关的正则化方式来约束 prompts 的学习，因此人工设计的 prompts 可能并没有起到太大的约束作用。
+
+如果对比学习损失是为了让 Mapper 自监督学习到图片的特征外，那么是否可以对域正则化损失进行改进，约束学习到的 prompts 向人工设计的初始化 prompts 对齐，以实现类似于 Stable Diffusion 类似的 prompts 控制图像生成的效果。
