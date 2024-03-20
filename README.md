@@ -182,8 +182,9 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 #### 修改日志
 
-1. 第一次尝试只加载了 `w_encoder` 类及其对应 checkpoint 参数，导致并未将真实图片编码到 StyleGAN 的 W 空间中
-2. 第二次尝试
+1. 第一次尝试只加载了 `w_encoder` 类及其对应 checkpoint 参数，导致并未将真实图片编码到 StyleGAN 的 W 空间中，没有 inversion 出合理的结果
+2. 第二次尝试使用了 `restyle_e4e_encoder`，但是没有使用 dlib 进行 alignment，也没有使用 restyle 模型在反演时使用的多次进行前向传播来修正 latent code 的策略。此次尝试虽然反演出了合理的人像，但是人像的特征保存能力非常弱
+3. 第三次尝试解决了上一次发现的问题，加入 alignment，并且使用 `run_loop` 函数在 restyle_e4e_encoder 中进行多次前向传播以修正得到的 W 空间的 latent code
 
 ## 问题提出与改进
 

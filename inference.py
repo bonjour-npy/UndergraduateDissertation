@@ -10,7 +10,8 @@ import warnings
 import dlib
 
 from model.ZSSGAN import SG2Generator
-from utils.align_faces_parallel import align_face  # face alignment with FFHQ method (https://github.com/NVlabs/ffhq-dataset)
+from utils.align_faces_parallel import \
+    align_face  # face alignment with FFHQ method (https://github.com/NVlabs/ffhq-dataset)
 from model.encoder.e4e import e4e
 from model.encoder.psp import pSp
 
