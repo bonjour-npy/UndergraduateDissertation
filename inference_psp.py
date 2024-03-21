@@ -21,13 +21,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def run_alignment(image_path):
     shape_predictor_path = "./pretrained_models/shape_predictor_68_face_landmarks.dat"
+    shape_predictor_GTX_path = "./pretrained_models/shape_predictor_68_face_landmarks_GTX.dat"
     if not os.path.exists(shape_predictor_path):
         print('Downloading files for aligning face image...')
         os.system('wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2')
         os.system('bzip2 -dk shape_predictor_68_face_landmarks.dat.bz2')
         print('Done.')
-    print(f"Loading shape predictor from {shape_predictor_path}\n")
-    predictor = dlib.shape_predictor(shape_predictor_path)
+    # print(f"Loading shape predictor from {shape_predictor_path}\n")
+    # predictor = dlib.shape_predictor(shape_predictor_path)
+    print(f"Loading shape predictor from {shape_predictor_GTX_path}\n")
+    predictor = dlib.shape_predictor(shape_predictor_GTX_path)
     aligned_image = align_face(filepath=image_path, predictor=predictor)
     print("Aligned image has shape: {}".format(aligned_image.size))
     return aligned_image
@@ -80,7 +83,7 @@ def run_loop(inputs, net, avg_image, n_iters=5):
     results_batch = {idx: [] for idx in range(inputs.shape[0])}
     results_latent = {idx: [] for idx in range(inputs.shape[0])}
     for iter in range(n_iters + 1):
-        if iter == 0:
+        if iter == 0:  # 将原始图像与average图像concat
             avg_image_for_batch = avg_image.unsqueeze(0).repeat(inputs.shape[0], 1, 1, 1)
             x_input = torch.cat([inputs, avg_image_for_batch], dim=1)
         else:
@@ -118,7 +121,7 @@ def inference():
     output_dir = "./inference_output"
     os.makedirs(output_dir, exist_ok=True)
 
-    adapted_gen_ckpt = "./adapted_generator/ffhq/disney.pt"
+    adapted_gen_ckpt = "./adapted_generator/ffhq/wall_painting.pt"
     print(f"Loading pre-trained target generator: {adapted_gen_ckpt}\n")
     generator_ema = SG2Generator(adapted_gen_ckpt, img_size=dataset_size, channel_multiplier=2, device=device)
     generator_ema.freeze_layers()
@@ -131,9 +134,7 @@ def inference():
     generator_frozen.eval()
 
     restyle_psp_ckpt_path = "pretrained_models/restyle_psp_ffhq_encode.pt"
-    restyle_e4e_ckpt_path = "pretrained_models/restyle_e4e_ffhq_encode.pt"
-    # restyle_psp = load_psp(restyle_psp_ckpt_path)
-    restyle_e4e = load_e4e(restyle_e4e_ckpt_path)
+    restyle_psp = load_psp(restyle_psp_ckpt_path)
 
     # 从本地选择图片
     # 创建一个tkinter窗口
@@ -143,16 +144,16 @@ def inference():
     image_path = filedialog.askopenfilename(title="select image file")
 
     print(f"\nLoading image from {image_path}\n")
-    image = run_alignment(image_path)
-    image.resize((256, 256))
+    aligned_image = run_alignment(image_path)
+    aligned_image.resize((256, 256))
     transform_inference = transforms.Compose([transforms.Resize((256, 256)),
                                               transforms.ToTensor(),
                                               transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
 
     with torch.no_grad():
-        transformed_image = transform_inference(image).cuda()
-        avg_image = get_average_image(restyle_e4e)
-        codes = run_loop(transformed_image.unsqueeze(0), restyle_e4e, avg_image)
+        transformed_image = transform_inference(aligned_image).cuda()
+        avg_image = get_average_image(restyle_psp)
+        codes = run_loop(transformed_image.unsqueeze(0), restyle_psp, avg_image)
         print(f"\nGenerating images to {output_dir}\n")
         target_image = generator_ema([codes], input_is_latent=True, randomize_noise=False)[0]
         source_image = generator_frozen([codes], input_is_latent=True, randomize_noise=False)[0]
