@@ -120,6 +120,7 @@ Z 空间和 W 空间是 StyleGAN 模型中两种不同的隐变量空间，分�
 
 1. 对比学习损失：Mapper 生成的源域 prompts 的特征**（注意，这里的 prompts 特征是与人工初始化的 prompts 的特征做过 element-wise 相加后的特征）**与源域图像特征的余弦相似度组成的对比学习损失；
 2. 目标域正则化损失：Mapper 生成的目标域 prompts 的特征与目标域文本标签特征的余弦相似度，这里生成的目标域 prompts 特征同样也是与人工初始化的 prompts 做过加法的。注意该损失有权重 `lambda_l`。
+3. 源域正则化：计算生成的源域prompts与源域标签之间的余弦相似度，由 `lambda_src` 控制，默认是 0。
 
 ### 训练 stage 2
 
@@ -201,3 +202,10 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 prompts 学习到源域图片的特征以及（2）使用域正则化使得 prompts 向目标域标签对齐之外，并没有使用其他与人工设计的 prompts 有关的正则化方式来约束 prompts 的学习，因此人工设计的 prompts 可能并没有起到太大的约束作用。
 
 如果对比学习损失是为了让 Mapper 自监督学习到图片的特征外，那么是否可以对域正则化损失进行改进，约束学习到的 prompts 向人工设计的初始化 prompts 对齐，以实现类似于 Stable Diffusion 类似的 prompts 控制图像生成的效果。
+
+### Mapper 结构的设计
+
+Mapper 的作用是从 W 空间的隐式代码中学习出符合源域图片特征以及符合目标域文字特征的 prompts。
+
+原始
+

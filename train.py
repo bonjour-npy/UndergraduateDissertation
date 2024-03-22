@@ -216,7 +216,10 @@ def train(args):
                                                                           lambda_l=args.lambda_l,
                                                                           lambda_src=args.lambda_src)
             """
-            
+            由三部分组成：
+            1. 对比学习损失：计算生成的源域prompts与源域图像之间的余弦相似度
+            2. 目标域正则化：计算生成的目标域prompts与目标域标签之间的余弦相似度由--lambda_l控制
+            3. 源域正则化：计算生成的源域prompts与源域标签之间的余弦相似度，由--lambda_src控制，默认是0
             """
             m_optim.zero_grad()
             clip_model.zero_grad()
