@@ -155,13 +155,39 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 ## 定量分析指标
 
+参考文献：[GAN 的几种评价指标](https://blog.csdn.net/qq_35586657/article/details/98478508)
+
 1. Inception Score（IS）
 
-   评估图像的质量和多样性
+   **评估图像的质量和多样性**
+
+   质量：把生成的图片 $x$ 输入 Inception V3 中，得到输出 1000 维的向量 $y$，向量的每个维度的值对应图片属于某类的概率。对于一个清晰的图片，它属于某一类的概率应该非常大，而属于其它类的概率应该很小。用专业术语说， $p(y|x)$​ 的熵应该很小（熵代表混乱度，均匀分布的混乱度最大，熵最大）。
+
+   多样性： 如果一个模型能生成足够多样的图片，那么它生成的图片在各个类别中的分布应该是平均的，假设生成了 10000 张图片，那么最理想的情况是，1000 类中每类生成了 10 张。转换成术语，就是生成图片在所有类别概率的边缘分布 $p(y)$​ 熵很大（均匀分布）。
+
+   因此，对于 IS 我们需要求的两个量就是 $p(y|x)$ 和 $p(y)$。实际中，选取大量生成样本，用经验分布模拟 $p(y)$：
+   $$
+   \hat{p}(y)=\frac{1}{N}\sum_{i=1}^{N}p(y|\mathbf{x}^{(i)})
+   $$
+   Inception Score 的完整公式如下：
+   $$
+   \mathbf{IS}(G)=\exp\left(\mathbb{E}_{\mathbf{x}\sim p_g}D_{KL}\left(p(y|\mathbf{x})||p(y)\right)\right)
+   $$
+   通常计算 Inception Score 时，会生成 50000 个图片，然后把它分成 10 份，每份 5000 个，分别代入公式计算 10 次 Inception Score，再计算均值和方差，作为最终的衡量指标（均值±方差）。但是 5000 个样本往往不足以得到准确的边缘分布 $p(y)$​，尤其是像 ImageNet 这种包含 1000 个类的数据集。
+
+   StyleGAN-nada 以及 IPL 在经过 batch_size 为 2，iteration 为 300 的训练后（其中 IPL 的 Mapper 是以 batch_size 为 32，iteration 为 300 进行训练的），二者的 IS 分别为 `(2.2960, 0.2042)` 以及 `(2.6420, 0.1959)`。
 
 2. Style Fréchet Inception Distance（SFID）
 
-   评估目标域的风格
+   **评估目标域的风格**
+
+   计算 IS 时只考虑了生成样本，没有考虑真实数据，即 **IS 无法反映真实数据和样本之间的距离**，IS 判断数据真实性的依据，源于 Inception V3 的训练集 ImageNet，在 Inception V3 的“世界观”下，凡是不像 ImageNet 的数据，都是不真实的，都不能保证输出一个 sharp 的 predition distribution。因此，要想更好地评价生成网络，就要使用更加有效的方法计算真实分布与生成样本之间的距离。
+
+   FID 距离计算真实样本，生成样本在特征空间之间的距离。首先利用 Inception 网络来提取特征，然后使用高斯模型对特征空间进行建模，再去求解两个特征之间的距离，较低的 FID 意味着较高图片的质量和多样性。
+
+   StyleGAN-nada 以及 IPL 在经过 batch_size 为 2，iteration 为 300 的训练后（其中 IPL 的 Mapper 是以 batch_size 为 32，iteration 为 300 进行训练的），二者的 FID 分别为 `422.79` 以及 `391.09`。
+
+   ![d560813d6a9da50f03d923d0007bb36](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesd560813d6a9da50f03d923d0007bb36.png)
 
 3. Structural Consistency Score（SCS）
 
