@@ -121,7 +121,7 @@ def inference():
     output_dir = "./inference_output"
     os.makedirs(output_dir, exist_ok=True)
 
-    adapted_gen_ckpt = "./adapted_generator/ffhq/disney.pt"
+    adapted_gen_ckpt = "./output/disney/checkpoint/generator/000300.pt"
     print(f"Loading pre-trained target generator: {adapted_gen_ckpt}\n")
     generator_ema = SG2Generator(adapted_gen_ckpt, img_size=dataset_size, channel_multiplier=2, device=device)
     generator_ema.freeze_layers()

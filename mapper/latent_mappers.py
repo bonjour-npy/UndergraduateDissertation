@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 from torch.nn import Module
+from torch.nn import TransformerEncoder, TransformerEncoderLayer
+
 from mapper.stylegan2.model import EqualLinear, PixelNorm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -15,16 +17,9 @@ class Mapper(Module):
         style_dim = n_dim
 
         for i in range(3):
-            layers.append(
-                EqualLinear(
-                    512, 512, lr_mul=0.01, activation='fused_lrelu'
-                )
-            )
-        layers.append(
-            EqualLinear(
-                512, style_dim * opts.n_ctx, lr_mul=0.01, activation='fused_lrelu'
-            )
-        )
+            layers.append(EqualLinear(512, 512, lr_mul=0.01, activation='fused_lrelu'))
+
+        layers.append(EqualLinear(512, style_dim * opts.n_ctx, lr_mul=0.01, activation='fused_lrelu'))
 
         self.mapping = nn.Sequential(*layers)  # 解压后加入sequential中
 
@@ -82,4 +77,33 @@ class LevelsMapper(Module):
 
         out = torch.cat([x_coarse, x_medium, x_fine], dim=1)
 
+        return out
+
+
+###############################
+# Add Transformer Mapper here #
+###############################
+class TransformerMapper(nn.Module):
+    def __init__(self, opts, n_dim):
+        super(TransformerMapper, self).__init__()
+        self.opts = opts
+        self.n_dim = n_dim
+
+        layers = [PixelNorm()]  # 将每个点归一化（除以模长），避免输入noise的极端权重，改善稳定性
+
+        # 自定义Transformer编码器层配置
+        transformer_layer = TransformerEncoderLayer(d_model=512, nhead=2, dim_feedforward=1024, dropout=0.1)
+
+        # 构建Transformer编码器
+        self.transformer_encoder = TransformerEncoder(transformer_layer, num_layers=3)
+        layers.append(self.transformer_encoder)
+
+        # 最后一个全连接层，输出维度保持不变
+        self.final_linear = EqualLinear(512, n_dim * opts.n_ctx, lr_mul=0.01, activation='fused_lrelu')
+        layers.append(self.final_linear)
+
+        self.mapping = nn.Sequential(*layers).to(device)
+
+    def forward(self, x):
+        out = self.mapping(x)
         return out

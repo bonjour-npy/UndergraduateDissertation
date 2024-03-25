@@ -183,7 +183,7 @@ def train(args):
             sample_z = mixing_noise(args.batch_mapper, 512, args.mixing, device)
             # (batch_size, 512)
             sample_w = net.generator_frozen.style(sample_z)  # Z空间到W空间的变换
-            # (batch_size, 512)
+            # (batch_size, 512)，注意sample_w外面还有一层列表，所以在传入sample_w时要使用索引选定
             prompts = torch.reshape(mapper(sample_w[0]), (args.batch_mapper, args.n_ctx, n_dim)).type(clip_model.dtype)
             # 通过W空间的随机分布初始化需要学习的prompts (batch_size, n_ctx, n_dim)
             source_text_features = compute_text_features(prompts, source_prefix, source_suffix,

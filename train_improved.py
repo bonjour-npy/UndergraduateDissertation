@@ -1,24 +1,13 @@
 """
-Example commands:
-    CUDA_VISIBLE_DEVICES=0 python train.py  --frozen_gen_ckpt ./pre_stylegan/stylegan2-ffhq-config-f.pt \
-                                            --source_model_type "ffhq" \
-                                            --output_interval 300 \
-                                            --save_interval 300 \
-                                            --auto_compute \
-                                            --source_class "photo" \
-                                            --target_class "disney" \
-                                            --run_stage1 \
-                                            --batch_mapper 32 \
-                                            --lr_mapper 0.05 \
-                                            --iter_mapper 300 \
-                                            --ctx_init "a photo of a" \
-                                            --n_ctx 4 \
-                                            --lambda_l 1 \
-                                            --run_stage2 \
-                                            --batch 2 \
-                                            --lr 0.002 \
-                                            --iter 300 \
-                                            --output_dir ./output/disney
+Example arguments:
+train_improved.py   --src_label photo \
+                    --tar_label disney \
+                    --frozen_gen_ckpt ./pre_stylegan/stylegan2-ffhq-config-f.pt \
+                    --adapted_gen_ckpt ./adapted_generator/ffhq/disney.pt \
+                    --source_model_type "ffhq" \
+                    --auto_compute \
+                    --n_generate 10 \
+                    --epochs_generate 500
 """
 import os
 import numpy as np
@@ -174,7 +163,7 @@ def train(args):
     if args.run_stage1:
         # stage 1
         print("stage 1: training mapper")
-        mapper = latent_mappers.SingleMapper(args, n_dim)
+        mapper = latent_mappers.TransformerMapper(args, n_dim)
         # 由PixelNorm以及四层EqualLinear构成的Mapper，最终输出n_dim * n_ctx
         m_optim = torch.optim.Adam(mapper.mapping.parameters(), lr=args.lr_mapper)
 
@@ -229,7 +218,7 @@ def train(args):
 
         # stage 1的全部epoch结束后保存mapper的参数
         torch.save({"m": mapper.state_dict(), "m_optim": m_optim.state_dict()},
-                   f"{ckpt_dir_m}/mapper.pt")
+                   f"{ckpt_dir_m}/transformer_mapper.pt")
 
     generator_ema = (SG2Generator(args.frozen_gen_ckpt, img_size=args.size, channel_multiplier=args.channel_multiplier)
                      .to(device))
@@ -246,9 +235,9 @@ def train(args):
         print("stage 2: training generator")
         if not args.run_stage1:
             print("loading mapper...")
-            checkpoint_path = os.path.join(ckpt_dir_m, "mapper.pt")
+            checkpoint_path = os.path.join(ckpt_dir_m, "transformer_mapper.pt")
             checkpoint = torch.load(checkpoint_path, map_location=device)
-            mapper = latent_mappers.SingleMapper(args, n_dim)
+            mapper = latent_mappers.TransformerMapper(args, n_dim)
             mapper.load_state_dict(checkpoint["m"], strict=True)
         mapper.eval()
         g_optim = torch.optim.Adam(
