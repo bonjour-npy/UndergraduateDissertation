@@ -177,7 +177,7 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
    StyleGAN-nada 以及 IPL 在经过 batch_size 为 2，iteration 为 300 的训练后（其中 IPL 的 Mapper 是以 batch_size 为 32，iteration 为 300 进行训练的），二者的 IS 分别为 `(2.2960, 0.2042)` 以及 `(2.6420, 0.1959)`。
 
-2. Style Fréchet Inception Distance（SFID）
+2. Fréchet Inception Distance（FID）
 
    **评估目标域的风格**
 
@@ -185,15 +185,17 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
    FID 距离计算真实样本，生成样本在特征空间之间的距离。首先利用 Inception 网络来提取特征，然后使用高斯模型对特征空间进行建模，再去求解两个特征之间的距离，较低的 FID 意味着较高图片的质量和多样性。
 
-   StyleGAN-nada 以及 IPL 在经过 batch_size 为 2，iteration 为 300 的训练后（其中 IPL 的 Mapper 是以 batch_size 为 32，iteration 为 300 进行训练的），二者的 FID 分别为 `422.79` 以及 `391.09`。
+   StyleGAN-nada 以及 IPL 在经过 batch_size 为 2，iteration 为 300 的训练后（其中 IPL 的 Mapper 是以 batch_size 为 32，iteration 为 300 进行训练的），二者的 FID 分别为 `84` 以及 `58`。
 
-   ![d560813d6a9da50f03d923d0007bb36](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesd560813d6a9da50f03d923d0007bb36.png)
+3. Single Image Fréchet Inception Score（SIFID）
 
-3. Structural Consistency Score（SCS）
+   FID 测量生成的图像的深层特征分布与真实图像的分布之间的偏差。在 ICCV 2019 Best Paper 中提出了 SIFID，只使用一张真实目标域的图像。与 FID 不同，SFID 不使用 Inception Network 中最后一个池化层之后的激活矢量（每个图像一个向量），而是在第二个池层之前的卷积层输出处使用深层特征的内部分布（feature map 中每个位置一个向量）。最终 SIFID 是真实图像和生成的样本中这些特征的统计数据之间的 FID。
+
+4. Structural Consistency Score（SCS）
 
    评估图像的结构保存能力
 
-4. Identity Similarity（ID）
+5. Identity Similarity（ID）
 
    评估图像的特征保存能力
 

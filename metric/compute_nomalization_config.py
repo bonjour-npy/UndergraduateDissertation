@@ -23,13 +23,15 @@ class IplDataset(torch.utils.data.Dataset):
         return len(self.images)
 
 
-def compute_mean_and_std(ImageDataSet, root="../dataset/ipl/photo_to_disney/disney", device=torch.device("cuda")):
+def compute_mean_and_std(ImageDataSet, root="../dataset/ipl/photo_to_disney/disney", device=torch.device("cuda"),
+                         num_workers=8):
     # 图像预处理
-    train_transform = transforms.Compose([transforms.Resize((299, 299)),
-                                          transforms.ToTensor()])
+    # train_transform = transforms.Compose([transforms.Resize((299, 299)),
+    #                                       transforms.ToTensor()])
+    train_transform = transforms.Compose([transforms.ToTensor()])
 
-    ipl_dataset = ImageDataSet(root=root, transform=train_transform)
-    train_loader = DataLoader(dataset=ipl_dataset, batch_size=500, shuffle=True, num_workers=8)
+    dataset = ImageDataSet(root=root, transform=train_transform)
+    train_loader = DataLoader(dataset=dataset, batch_size=500, shuffle=True, num_workers=num_workers)
     print(f"Computing mean and std of {root}")
     data = next(iter(train_loader)).to(device)
     mean = torch.mean(data, dim=(0, 2, 3))
