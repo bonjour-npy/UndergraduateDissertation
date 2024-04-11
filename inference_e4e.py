@@ -3,6 +3,7 @@ import torch
 from torchvision import transforms
 from PIL import Image
 import tkinter as tk
+import numpy as np
 from tkinter import filedialog
 from argparse import Namespace
 from torchvision.utils import save_image as save_generated_images
@@ -128,6 +129,7 @@ def inference():
     generator_ema.eval()
 
     frozen_gen_ckpt = "./pre_stylegan/stylegan2-ffhq-config-f.pt"
+    frozen_gen_ckpt = "./pre_stylegan/stylegan2-ffhq-config-f.pt"
     print(f"Loading pre-trained source generator: {frozen_gen_ckpt}\n")
     generator_frozen = SG2Generator(frozen_gen_ckpt, img_size=dataset_size, channel_multiplier=2, device=device)
     generator_frozen.freeze_layers()
@@ -148,9 +150,16 @@ def inference():
     print(f"\nLoading image from {image_path}\n")
     aligned_image = run_alignment(image_path)
     aligned_image.resize((256, 256))
+    # aligned_image_array = np.array(aligned_image)
+    # mean = np.mean(np.array(aligned_image), axis=(0, 1))
+    # std = np.std(np.array(aligned_image), axis=(0, 1))
+
     transform_inference = transforms.Compose([transforms.Resize((256, 256)),
                                               transforms.ToTensor(),
                                               transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
+    # transform_inference = transforms.Compose([transforms.Resize((256, 256)),
+    #                                           transforms.ToTensor(),
+    #                                           transforms.Normalize(mean=mean, std=std)])
 
     with torch.no_grad():
         transformed_image = transform_inference(aligned_image).cuda()
@@ -181,4 +190,5 @@ def inference():
 
 
 if __name__ == "__main__":
+    print(f"Running inference:\n")
     inference()

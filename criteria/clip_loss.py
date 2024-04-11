@@ -95,9 +95,23 @@ class CLIPLoss(torch.nn.Module):
 
     def get_text_features(self, class_str: str, templates=imagenet_templates, norm: bool = True) -> torch.Tensor:
 
-        template_text = self.compose_text_with_templates(class_str, templates)
+        template_text = self.compose_text_with_templates(class_str, templates)  # 返回使用class_str格式化后的templates列表
 
         tokens = clip.tokenize(template_text).to(self.device)
+
+        text_features = self.encode_text(tokens).detach()
+
+        if norm:
+            text_features /= text_features.norm(dim=-1, keepdim=True)
+
+        return text_features
+
+    ################################
+    # 添加计算人工设计prompt特征的方法 #
+    ################################
+    def get_prompt_features(self, prompt: str, norm: bool = True) -> torch.Tensor:
+
+        tokens = clip.tokenize(prompt).to(self.device)
 
         text_features = self.encode_text(tokens).detach()
 
@@ -199,11 +213,61 @@ class CLIPLoss(torch.nn.Module):
     def clip_directional_loss(self, src_img: torch.Tensor, source_class, target_img: torch.Tensor, target_class,
                               source_delta_features=None, target_delta_features=None, templates=None) -> torch.Tensor:
         """
-        论文中提到的改进版Directional CLIP Loss
+        论文中提到的改进版Directional CLIP Loss，训练第二阶段的损失函数
+        对于生成的源域和目标域prompts的特征，都向其中加入了人工初始化的prompt特征（即 a photo of a {label}. 的特征）
+        target_direction（text_direction）即生成的源域和目标域prompts特征的差值
+        edit_direction是生成的源域和目标域图像特征的差值
+        最后再送入directional_loss中，计算余弦相似度并以1-cosine_sim作为最终损失函数
+        也就是使源域与目标域图像之间的差异逼近二者prompts文字之间的差异
+        源域和目标域图像之间的差距应该是：源域图像（参考图像）具备的人物特征+目标域风格特征
+        :param src_img:
+        :param source_class:
+        :param target_img:
+        :param target_class:
+        :param source_delta_features:
+        :param target_delta_features:
+        :param templates:
+        :return:
+        """
+        if source_delta_features is None or target_delta_features is None:
+            self.target_direction = self.compute_text_direction(source_class, target_class)  # non-ipl
+
+        # 论文中提到的改进版directional clip loss
+        else:
+            # source_class
+            source_text_features = self.get_text_features(source_class, templates=[templates], norm=False)
+            for i in range(len(source_delta_features)):
+                source_delta_features[i] = torch.add(source_delta_features[i], source_text_features)
+            source_text_features = source_delta_features / source_delta_features.clone().norm(dim=-1, keepdim=True)
+
+            # target_class
+            target_text_features = self.get_text_features(target_class, templates=[templates], norm=False)
+            for i in range(len(target_delta_features)):
+                target_delta_features[i] = torch.add(target_delta_features[i], target_text_features)
+            target_text_features = target_delta_features / target_delta_features.clone().norm(dim=-1, keepdim=True)
+
+            text_direction = target_text_features - source_text_features
+            text_direction = text_direction.squeeze(1)
+
+            self.target_direction = text_direction / text_direction.clone().norm(dim=-1, keepdim=True)
+
+        src_encoding = self.get_image_features(src_img)
+        target_encoding = self.get_image_features(target_img)
+
+        edit_direction = (target_encoding - src_encoding)
+        edit_direction /= edit_direction.clone().norm(dim=-1, keepdim=True)
+
+        return self.direction_loss(edit_direction, self.target_direction).mean()
+
+    def improved_clip_directional_loss(self, src_img: torch.Tensor, source_class, target_img: torch.Tensor,
+                                       target_class, source_delta_features=None, target_delta_features=None,
+                                       templates=None) -> torch.Tensor:
+        """
+        自主改进版Directional CLIP Loss，训练第二阶段的损失函数，配合
         对于生成的源域和目标域prompts的特征，都向其中加入了人工初始化的prompt特征（即a photo of a {label}.的特征）
         target_direction（text_direction）即生成的源域和目标域prompts特征的差值
         edit_direction是生成的源域和目标域图像特征的差值
-        最后再送入directional_loss中，计算余弦相似度并1-cosine_sim作为最终损失函数
+        最后再送入directional_loss中，计算余弦相似度并以1-cosine_sim作为最终损失函数
         也就是使源域与目标域图像之间的差异逼近二者prompts文字之间的差异
         :param src_img:
         :param source_class:
@@ -270,7 +334,8 @@ class CLIPLoss(torch.nn.Module):
             3：Normalize(mean=(0.48145466, 0.4578275, 0.40821073), std=(0.26862954, 0.26130258, 0.27577711))
             """
             image_features = self.model.encode_image(image).detach()  # VisionTransformer对image编码(batch_size, n_dim)
-            image_features = image_features / image_features.norm(dim=-1, keepdim=True)  # 归一化，方便后续计算余弦相似度(batch_size, n_dim)
+            image_features = image_features / image_features.norm(dim=-1,
+                                                                  keepdim=True)  # 归一化，方便后续计算余弦相似度(batch_size, n_dim)
 
             # text features
             prompt_prefix = prompt_prefix + " {}."  # 方便后续使用string的format方法向{}中加入域标签
@@ -318,6 +383,111 @@ class CLIPLoss(torch.nn.Module):
             lambda_src是paper公式6的lambda，域损失函数的正则项系数
             """
             return total_loss + lambda_l * (target_loss + lambda_src * source_loss)
+
+        else:
+            if not isinstance(text, list):
+                text = [text]
+
+            tokens = clip.tokenize(text).to(self.device)
+            image = self.preprocess(img)
+
+            logits_per_image, _ = self.model(image, tokens)
+
+            return (1. - logits_per_image / 100).mean()
+
+    ###################
+    # 改进domain loss #
+    ##################
+    def improved_global_clip_loss(self, img, text, prompt, delta_features=None, is_contrastive=0, logit_scale=None,
+                                  prompt_prefix=None, target_text=None, target_delta_features=None, lambda_l=1,
+                                  lambda_src=0) -> torch.Tensor:
+        """
+        :param img:
+        :param text:
+        :param prompt: 人工设计的prompts
+        :param delta_features: 生成prompts的文字特征，(batch_size, 1, n_dim)，无域标签
+        :param is_contrastive:
+        :param logit_scale:
+        :param prompt_prefix: "a photo of a"
+        :param target_text:
+        :param target_delta_features: 生成prompts的文字特征，(batch_size, 1, n_dim)，无域标签
+        :param lambda_l:
+        :param lambda_src:
+        :return:
+        """
+        if is_contrastive:
+
+            # image features
+            image = self.preprocess(img)  # resize为(batch_size, channel, 224, 224)
+            """
+            0：Normalize(mean=[-1.0, -1.0, -1.0], std=[2.0, 2.0, 2.0])
+            1：Resize(size=224, interpolation=bicubic, max_size=None, antialias=True)
+            2：CenterCrop(size=(224, 224))
+            3：Normalize(mean=(0.48145466, 0.4578275, 0.40821073), std=(0.26862954, 0.26130258, 0.27577711))
+            """
+            image_features = self.model.encode_image(image).detach()  # VisionTransformer对image编码(batch_size, n_dim)
+            image_features = image_features / image_features.norm(dim=-1,
+                                                                  keepdim=True)  # 归一化，方便后续计算余弦相似度(batch_size, n_dim)
+
+            # text features
+            prompt_prefix = prompt_prefix + " {}."  # 方便后续使用string的format方法向{}中加入域标签
+
+            # a photo of a {}. + 源域/目标域标签
+            init_source_features = self.get_text_features(text, templates=[prompt_prefix], norm=False)  # (1, n_dim)
+            init_target_features = self.get_text_features(target_text, templates=[prompt_prefix],
+                                                          norm=False)  # (1, n_dim)
+
+            delta_source_features = torch.empty_like(delta_features)  # (batch_size, 1, n_dim)
+            delta_target_features = torch.empty_like(target_delta_features)
+            for i in range(len(delta_features)):  # 将生成的prompt沿batch_size维度与init prompt做element-wise相加
+                delta_source_features[i] = torch.add(delta_features[i], init_source_features)
+                delta_target_features[i] = torch.add(target_delta_features[i], init_target_features)
+            # (batch_size, 1, n_dim)
+
+            text_source_features = delta_source_features / delta_source_features.clone().norm(dim=-1, keepdim=True)
+            text_target_features = delta_target_features / delta_target_features.clone().norm(dim=-1, keepdim=True)
+            # (batch_size, n_dim)
+
+            templates_source_features = self.get_text_features(text).mean(dim=0)  # 源域标签特征
+            templates_target_features = self.get_text_features(target_text).mean(dim=0)  # 目标域标签特征
+            ##############################
+            # 在这里加入计算prompt的文字特征 #
+            ##############################
+            prompt_target_features = self.get_prompt_features(prompt).mean(dim=0)  # prompt特征
+
+            text_target_features = text_target_features.squeeze(1)  # (batch_size, n_dim)
+            text_source_features = text_source_features.squeeze(1)
+            templates_source_features = templates_source_features.unsqueeze(0).expand(len(text_source_features), -1)
+            templates_target_features = templates_target_features.unsqueeze(0).expand(len(text_target_features), -1)
+            ##############################
+            # 在这里加入计算prompt的文字特征 #
+            ##############################
+            prompt_target_features = prompt_target_features.unsqueeze(0).expand(len(text_target_features), -1)
+
+            # 将生成的prompts（纯生成，无域标签）与域标签做direction_loss（这里生成的prompts是与初始化的prompts+域标签做过element-wise加法的）
+            target_loss = self.direction_loss(text_target_features, templates_target_features).mean()
+            source_loss = self.direction_loss(text_source_features, templates_source_features).mean()
+            ##############################
+            # 在这里加入计算prompt的文字特征 #
+            ##############################
+            prompt_loss = self.direction_loss(text_target_features, prompt_target_features).mean()
+
+            # cosine similarity as logits
+            logit_scale = logit_scale.exp()
+            logits_per_image = logit_scale * image_features @ text_source_features.squeeze(1).t()
+            # (batch_size, batch_size)
+            logits_per_text = torch.transpose(logits_per_image, dim0=0, dim1=1)
+            ground_truth = torch.arange(len(image_features), dtype=torch.long, device=self.device)  # 每一个元素代表每行的正确标签索引
+
+            total_loss = (self.loss_img(logits_per_image, ground_truth) + self.loss_txt(logits_per_text,
+                                                                                        ground_truth)) / 2
+            """
+            total_loss计算了对比学习的损失函数
+            source_loss是paper中的domain_loss
+            lambda_src是paper公式6的lambda，域损失函数的正则项系数
+            """
+            # return total_loss + lambda_l * (target_loss + lambda_src * source_loss)
+            return total_loss + lambda_l * prompt_loss
 
         else:
             if not isinstance(text, list):
