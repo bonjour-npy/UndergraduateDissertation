@@ -93,7 +93,7 @@ Z 空间和 W 空间是 StyleGAN 模型中两种不同的隐变量空间，分�
 
    - W 空间经过特征解耦的隐空间，与 Z 空间相比更加解耦合。
 
-   - 在 StyleGAN 中，W 空间的维度也通常为 512 维，是通过mapping network进行映射得到的，mapping network由PixelNorm层与EqualLinear层构成。以下代码节选自`sg2_model.py`
+   - 在 StyleGAN 中，W 空间的维度也通常为 512 维，是通过mapping network进行映射得到的，mapping network由PixelNorm层与EqualLinear层构成。以下代码节选自`sg2_model.py`：
 
      ```python
      '''mapping network'''
@@ -150,8 +150,8 @@ if self.training and self.auto_layer_iters > 0:
 
 stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损失函数由两部分组成：
 
-1. `edit_direciton`：源域生成器与目标域生成器生成的图片在经过 image encdoer 后做 element-wise 的相减，最后除以自身的 L2 Norm 方便后续与 target_direction 计算余弦相似度
-2. `target_direction`：Mapper 产生的源域和目标域 prompts 的 text_features 做element-wise相减后，最后初一自身的 L2 Norm 以便后续与 edit_direction 计算余弦相似度
+1. `edit_direciton`：源域生成器与目标域生成器生成的图片在经过 image encdoer 后做 element-wise 的相减，最后除以自身的 L2 Norm 方便后续与 target_direction 计算余弦相似度。
+2. `target_direction`：Mapper 产生的源域和目标域 prompts 的 text_features 做element-wise相减后，最后初一自身的 L2 Norm 以便后续与 edit_direction 计算余弦相似度。
 
 ## 定量分析指标
 
@@ -161,9 +161,9 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
    **评估图像的质量和多样性**
 
-   质量：把生成的图片 $x$ 输入 Inception V3 中，得到输出 1000 维的向量 $y$，向量的每个维度的值对应图片属于某类的概率。对于一个清晰的图片，它属于某一类的概率应该非常大，而属于其它类的概率应该很小。用专业术语说， $p(y|x)$​ 的熵应该很小（熵代表混乱度，均匀分布的混乱度最大，熵最大）。
+   质量：把生成的图片 $x$ 输入 Inception V3 中，得到输出 1000 维的向量 $y$，向量的每个维度的值对应图片属于某类的概率。对于一个清晰的图片，它属于某一类的概率应该非常大，而属于其它类的概率应该很小。用专业术语说， $p(y|x)$ 的熵应该很小（熵代表混乱度，均匀分布的混乱度最大，熵最大）。
 
-   多样性： 如果一个模型能生成足够多样的图片，那么它生成的图片在各个类别中的分布应该是平均的，假设生成了 10000 张图片，那么最理想的情况是，1000 类中每类生成了 10 张。转换成术语，就是生成图片在所有类别概率的边缘分布 $p(y)$​ 熵很大（均匀分布）。
+   多样性： 如果一个模型能生成足够多样的图片，那么它生成的图片在各个类别中的分布应该是平均的，假设生成了 10000 张图片，那么最理想的情况是，1000 类中每类生成了 10 张。转换成术语，就是生成图片在所有类别概率的边缘分布 $p(y)$ 熵很大（均匀分布）。
 
    因此，对于 IS 我们需要求的两个量就是 $p(y|x)$ 和 $p(y)$。实际中，选取大量生成样本，用经验分布模拟 $p(y)$：
    $$
@@ -173,7 +173,7 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
    $$
    \mathbf{IS}(G)=\exp\left(\mathbb{E}_{\mathbf{x}\sim p_g}D_{KL}\left(p(y|\mathbf{x})||p(y)\right)\right)
    $$
-   通常计算 Inception Score 时，会生成 50000 个图片，然后把它分成 10 份，每份 5000 个，分别代入公式计算 10 次 Inception Score，再计算均值和方差，作为最终的衡量指标（均值±方差）。但是 5000 个样本往往不足以得到准确的边缘分布 $p(y)$​，尤其是像 ImageNet 这种包含 1000 个类的数据集。
+   通常计算 Inception Score 时，会生成 50000 个图片，然后把它分成 10 份，每份 5000 个，分别代入公式计算 10 次 Inception Score，再计算均值和方差，作为最终的衡量指标（均值±方差）。但是 5000 个样本往往不足以得到准确的边缘分布 $p(y)$，尤其是像 ImageNet 这种包含 1000 个类的数据集。
 
    StyleGAN-nada 以及 IPL 在经过 batch_size 为 2，iteration 为 300 的训练后（其中 IPL 的 Mapper 是以 batch_size 为 32，iteration 为 300 进行训练的），二者的 IS 分别为 `(2.2960, 0.2042)` 以及 `(2.6420, 0.1959)`。
 
@@ -220,10 +220,17 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 ### 训练阶段人工 prompts 的作用是什么？
 
-#### 作用
+在 IPL 的官方代码实现中，人工设计的 prompts 有两处，一是 `ctx_init`，由命令行参数赋值，即 "a photo of a"，另一处是 utils/text_templates.py 中的 templates，
 
-1. 人工设计的 prompts 在计算 `text_features` 时用于定位 `eot` 层符号所表示的维度来进行投影，但不参与 `text_features` 的实际计算
-2. 在训练 Mapper 的 stage 1 的损失函数中，在计算对比损失函数时，Mapper 学习到的 prompts 的文字特征特征会与人工设计的 prompts 的文字特征进行 element-wise 的相加，最后再与 源域生成器得到的图片的图像特征进行对比损失计算
+#### ctx_init 的作用
+
+1. `ctx_init` 在 `compute_text_features` 函数中用于定位 `eot` 层符号所表示的维度来进行投影，使得文字特征与图像特征维度相同，并不参与 `text_features` 的实际计算。但是在该函数中，Mapper 输出的 image-specific prompts 已经与域标签的嵌入表示进行了 concat。
+
+2. 在 stage 1 训练 Mapper 损失函数中，Mapper 学习到的 image-specfic prompts 在与源域标签进行 concat 并得到文字编码后，会与 ctx_init 的文字编码进行 element-wise 的相加，最后再与源域生成器输出的图片的图像编码进行对比损失计算；
+
+   同理，在 stage 2 训练目标域生成器时，Mapper 输出的 image-specific prompts 在分别与源域、目标域标签 concat 后送入文字编码器得到文字特征，再与 ctx_init 的文字特征进行 element-wise 相加，最后二者相减得到 text_direction。
+
+#### templates 的作用
 
 #### 思考
 
@@ -236,4 +243,3 @@ IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 pro
 Mapper 的作用是从 W 空间的隐式代码中学习出符合源域图片特征以及符合目标域文字特征的 prompts。
 
 原始
-

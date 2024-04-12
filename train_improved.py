@@ -75,7 +75,8 @@ def compute_text_features(prompts, source_prefix, source_suffix, source_tokenize
     :param source_tokenized_prompts: sot+人工初始化+域标签+eot，(1, 77) 只用于选中eot符号层，不参与特征的计算
     :param clip_model:
     :param batch:
-    :return: [sot + 学习到的prompts + class label + eot + etc]的嵌入表示的文字特征
+    :return: [sot + 学习到的prompts + class label + eot + etc]的嵌入表示的文字特征，即论文中提到的将学习到的
+             image-specific prompts与class label进行concat
     """
     source_ctx = prompts.unsqueeze(1)  # (batch_size, 1, n_ctx, n_dim)
     source_prefix = source_prefix.expand(batch, -1, -1, -1)  # 对应维度复制输入参数的倍数，(batch_size, 1, 1, 512)
@@ -186,44 +187,44 @@ def train(args):
             source_text_features = compute_text_features(prompts, source_prefix, source_suffix,
                                                          source_tokenized_prompts,
                                                          clip_model, args.batch_mapper)
-            # 生成Prompt文字特征（无域标签）
+            # image-specific prompts与源域标签concat之后得到的文字编码
             """
-            输入分别是W空间随机初始化prompts的嵌入表示，sot与eot符号的嵌入表示，以及标记化之后的人工初始化prompts
             在compute_text_features中最后一步使用text_projection进行投影的目的是为了与图像编码器的输出可以进行对比学习
             text_features的形状：(batch_size, 1, n_dim)，最终获得的是每个图像对应的mapper通过随机分布生成的prompt的特征
             """
             target_text_features = compute_text_features(prompts, target_prefix, target_suffix,
                                                          target_tokenized_prompts,
                                                          clip_model, args.batch_mapper)
+            # image-specific prompts与目标域标签concat之后得到的文字编码
             with torch.no_grad():
                 imgs = net.generator_frozen(sample_z,  # 使用Z空间随机初始化向量生成图像
                                             input_is_latent=False,
                                             truncation=1,
                                             randomize_noise=True)[0].detach()
                 # (32, 3, 1024, 1024)
-            # loss = clip_loss_models[args.clip_models[0]].global_clip_loss(img=imgs,
-            #                                                               text=args.source_class,  # 源域标签str
-            #                                                               delta_features=source_text_features,
-            #                                                               # (batch_size, 1, n_dim)
-            #                                                               is_contrastive=1,
-            #                                                               logit_scale=clip_model.logit_scale,
-            #                                                               prompt_prefix=prompt_prefix,
-            #                                                               target_text=args.target_class,
-            #                                                               target_delta_features=target_text_features,
-            #                                                               lambda_l=args.lambda_l,
-            #                                                               lambda_src=args.lambda_src)
-            loss = clip_loss_models[args.clip_models[0]].improved_global_clip_loss(img=imgs,
-                                                                                   text=args.source_class,  # 源域标签str
-                                                                                   prompt=args.prompt,
-                                                                                   delta_features=source_text_features,
-                                                                                   # (batch_size, 1, n_dim)
-                                                                                   is_contrastive=1,
-                                                                                   logit_scale=clip_model.logit_scale,
-                                                                                   prompt_prefix=prompt_prefix,
-                                                                                   target_text=args.target_class,
-                                                                                   target_delta_features=target_text_features,
-                                                                                   lambda_l=args.lambda_l,
-                                                                                   lambda_src=args.lambda_src)
+            loss = clip_loss_models[args.clip_models[0]].global_clip_loss(img=imgs,
+                                                                          text=args.source_class,  # 源域标签str
+                                                                          delta_features=source_text_features,
+                                                                          # (batch_size, 1, n_dim)
+                                                                          is_contrastive=1,
+                                                                          logit_scale=clip_model.logit_scale,
+                                                                          prompt_prefix=prompt_prefix,
+                                                                          target_text=args.target_class,
+                                                                          target_delta_features=target_text_features,
+                                                                          lambda_l=args.lambda_l,
+                                                                          lambda_src=args.lambda_src)
+            # loss = clip_loss_models[args.clip_models[0]].improved_global_clip_loss(img=imgs,
+            #                                                                        text=args.source_class,  # 源域标签str
+            #                                                                        prompt=args.prompt,
+            #                                                                        delta_features=source_text_features,
+            #                                                                        # (batch_size, 1, n_dim)
+            #                                                                        is_contrastive=1,
+            #                                                                        logit_scale=clip_model.logit_scale,
+            #                                                                        prompt_prefix=prompt_prefix,
+            #                                                                        target_text=args.target_class,
+            #                                                                        target_delta_features=target_text_features,
+            #                                                                        lambda_l=args.lambda_l,
+            #                                                                        lambda_src=args.lambda_src)
             """
             由三部分组成：
             1. 对比学习损失：计算生成的源域prompts与源域图像之间的余弦相似度
@@ -280,8 +281,10 @@ def train(args):
                 # shape: (batch_size, n_ctx, n_dim)
                 source_text_features = compute_text_features(prompts, source_prefix, source_suffix,
                                                              source_tokenized_prompts, clip_model, args.batch)
+                # 将image-specific prompts与源域class label concat起来送入text encoder
                 target_text_features = compute_text_features(prompts, target_prefix, target_suffix,
                                                              target_tokenized_prompts, clip_model, args.batch)
+                # 将image-specific prompts与目标域class label concat起来送入text encoder
 
             [sampled_src, sampled_dst], loss = net(sample_w, input_is_latent=True,
                                                    source_text_features=source_text_features,
