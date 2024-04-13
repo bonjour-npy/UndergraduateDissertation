@@ -218,11 +218,11 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 ## 问题提出与改进
 
-### 训练阶段人工 prompts 的作用是什么？
+### 问题：训练阶段人工 prompts 的作用是什么？
 
 在 IPL 的官方代码实现中，人工设计的 prompts 有两处，一是 `ctx_init`，由命令行参数赋值，即 "a photo of a"，另一处是 utils/text_templates.py 中的 templates，
 
-#### ctx_init 的作用
+#### ctx_init 的作用（与域标签拼接后的 ctx_init）
 
 1. `ctx_init` 在 `compute_text_features` 函数中用于定位 `eot` 层符号所表示的维度来进行投影，使得文字特征与图像特征维度相同，并不参与 `text_features` 的实际计算。但是在该函数中，Mapper 输出的 image-specific prompts 已经与域标签的嵌入表示进行了 concat。
 
@@ -238,8 +238,18 @@ IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 pro
 
 如果对比学习损失是为了让 Mapper 自监督学习到图片的特征外，那么是否可以对域正则化损失进行改进，约束学习到的 prompts 向人工设计的初始化 prompts 对齐，以实现类似于 Stable Diffusion 类似的 prompts 控制图像生成的效果。
 
-### Mapper 结构的设计
+### 改进：Mapper 结构的设计
 
 Mapper 的作用是从 W 空间的隐式代码中学习出符合源域图片特征以及符合目标域文字特征的 prompts。
 
-原始
+### 改进：使学习到的 prompts 向用户自主设计的 prompts 模板对齐
+
+对第一阶段的损失函数做出修改，更新domain loss，使目标域的image-specific prompts与自定义模板对齐。
+
+#### 对 global_clip_loss 的改进
+
+IPL 训练第一阶段的损失函数除了源域 prompts 与源域图像之间的对比学习损失函数外，还有将目标域 prompts 与目标域标签计算余弦相似度的 domain regularization。
+
+对 domain regularization 进行改进，引入开发者自定义的 prompts，约束 Mapper 学习到的目标域 prompts 向开发者自定义的 prompts 对齐，以此来进行 prompt tuning，发挥 prompt learning 的更大优势，并增强自定义性。
+
+#### 对 clip_directional_loss 的改进

@@ -398,13 +398,15 @@ class CLIPLoss(torch.nn.Module):
 
             return (1. - logits_per_image / 100).mean()
 
-    ###################
-    # 改进domain loss #
-    ##################
+    ##############################################
+    # 改进stage 1损失函数中的domain regularization #
+    ##############################################
+
     def improved_global_clip_loss(self, img, text, prompt, delta_features=None, is_contrastive=0, logit_scale=None,
                                   prompt_prefix=None, target_text=None, target_delta_features=None, lambda_l=1,
                                   lambda_src=0) -> torch.Tensor:
         """
+        对第一阶段的损失函数做出修改，更新domain loss，使目标域的image-specific prompts与自定义模板对齐
         :param img: 源域生成器输出的图像
         :param text: 源域标签
         :param delta_features: 生成的image-specific prompts与源域标签concat后的文字特征，(batch_size, 1, n_dim)
@@ -427,14 +429,14 @@ class CLIPLoss(torch.nn.Module):
             2：CenterCrop(size=(224, 224))
             3：Normalize(mean=(0.48145466, 0.4578275, 0.40821073), std=(0.26862954, 0.26130258, 0.27577711))
             """
-            image_features = self.model.encode_image(image).detach()  # VisionTransformer对image编码(batch_size, n_dim)
-            image_features = image_features / image_features.norm(dim=-1,
-                                                                  keepdim=True)  # 归一化，方便后续计算余弦相似度(batch_size, n_dim)
+            image_features = self.model.encode_image(image).detach()  # 使用ViT编码(batch_size, n_dim)
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            # 归一化，方便后续计算余弦相似度(batch_size, n_dim)
 
             # text features
-            prompt_prefix = prompt_prefix + " {}."  # 方便后续使用string的format方法向{}中加入域标签
+            prompt_prefix = prompt_prefix + " {}."  # 方便后续使用string的format方法向{}中加入域标签，"a photo of a {}."
 
-            # a photo of a {}. + 源域/目标域标签
+            # 计算"a photo of a {source/target label}."的文字编码
             init_source_features = self.get_text_features(text, templates=[prompt_prefix], norm=False)  # (1, n_dim)
             init_target_features = self.get_text_features(target_text, templates=[prompt_prefix],
                                                           norm=False)  # (1, n_dim)
@@ -447,31 +449,33 @@ class CLIPLoss(torch.nn.Module):
             # (batch_size, 1, n_dim)
 
             text_source_features = delta_source_features / delta_source_features.clone().norm(dim=-1, keepdim=True)
+            # 生成的源域prompts，(batch_size, 1, n_dim)
             text_target_features = delta_target_features / delta_target_features.clone().norm(dim=-1, keepdim=True)
-            # (batch_size, n_dim)
+            # 生成的目标域prompts，(batch_size, 1, n_dim)
 
             templates_source_features = self.get_text_features(text).mean(dim=0)  # 源域标签特征
             templates_target_features = self.get_text_features(target_text).mean(dim=0)  # 目标域标签特征
-            ##############################
-            # 在这里加入计算prompt的文字特征 #
-            ##############################
-            prompt_target_features = self.get_prompt_features(prompt).mean(dim=0)  # prompt特征
+            ################################
+            # 计算改进设计的prompts的文字编码 #
+            ################################
+            prompt_target_features = self.get_prompt_features(prompt).mean(dim=0)  # 改进设计的prompts特征
 
             text_target_features = text_target_features.squeeze(1)  # (batch_size, n_dim)
-            text_source_features = text_source_features.squeeze(1)
+            text_source_features = text_source_features.squeeze(1)  # (batch_size, n_dim)
+
             templates_source_features = templates_source_features.unsqueeze(0).expand(len(text_source_features), -1)
             templates_target_features = templates_target_features.unsqueeze(0).expand(len(text_target_features), -1)
-            ##############################
-            # 在这里加入计算prompt的文字特征 #
-            ##############################
+            ################################
+            # 预处理改进设计的prompts文字特征 #
+            ################################
             prompt_target_features = prompt_target_features.unsqueeze(0).expand(len(text_target_features), -1)
 
-            # 将生成的prompts（纯生成，无域标签）与域标签做direction_loss（这里生成的prompts是与初始化的prompts+域标签做过element-wise加法的）
+            # 将生成的prompts与域标签做direction_loss（这里生成的prompts是与域标签做过concat且与初始化的ctx_init+域标签做过element-wise加法的）
             target_loss = self.direction_loss(text_target_features, templates_target_features).mean()
             source_loss = self.direction_loss(text_source_features, templates_source_features).mean()
-            ##############################
-            # 在这里加入计算prompt的文字特征 #
-            ##############################
+            #################################################################################
+            # 计算目标域prompts与改进设计prompts的directional loss作为新的domain regularization #
+            #################################################################################
             prompt_loss = self.direction_loss(text_target_features, prompt_target_features).mean()
 
             # cosine similarity as logits
