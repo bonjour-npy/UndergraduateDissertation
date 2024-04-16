@@ -94,6 +94,12 @@ class CLIPLoss(torch.nn.Module):
         return 1. - similarity
 
     def get_text_features(self, class_str: str, templates=imagenet_templates, norm: bool = True) -> torch.Tensor:
+        """
+        :param class_str:
+        :param templates: 默认的templates是在utils/text_templates.py中写好的imagenet_templates
+        :param norm:
+        :return:
+        """
 
         template_text = self.compose_text_with_templates(class_str, templates)  # 返回使用class_str格式化后的templates列表
 
@@ -314,6 +320,8 @@ class CLIPLoss(torch.nn.Module):
     def global_clip_loss(self, img, text, delta_features=None, is_contrastive=0, logit_scale=None, prompt_prefix=None,
                          target_text=None, target_delta_features=None, lambda_l=0, lambda_src=1) -> torch.Tensor:
         """
+        原始第一阶段损失函数包含两个部分，一部分是源域的image-specific prompts与源域图像的对比学习损失函数，
+        另一部分是目标域的image-specific prompts与目标域模板的余弦相似度损失
         :param img: 源域生成器输出的图像
         :param text: 源域标签
         :param delta_features: 生成的image-specific prompts与源域标签concat后的文字特征，(batch_size, 1, n_dim)

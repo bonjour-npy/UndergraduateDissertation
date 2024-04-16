@@ -72,7 +72,7 @@ def compute_text_features(prompts, source_prefix, source_suffix, source_tokenize
     :param prompts: Mapper生成的prompts的嵌入表示，(batch_size, n_ctx, n_dim)
     :param source_prefix: sot符号的嵌入表示，(1, 1, 512)
     :param source_suffix: n_ctx符号之后的所有符号（包括source_class、eot符号以及补足位）的的嵌入表示，(1, 77-n_ctx-1, 512)
-    :param source_tokenized_prompts: sot+人工初始化+域标签+eot，(1, 77) 只用于选中eot符号层，不参与特征的计算
+    :param source_tokenized_prompts: sot + ctx_init + 域标签 + eot，(1, 77) 只用于选中eot符号层，不参与特征的计算
     :param clip_model:
     :param batch:
     :return: [sot + 学习到的prompts + class label + eot + etc]的嵌入表示的文字特征，即论文中提到的将学习到的
@@ -202,29 +202,31 @@ def train(args):
                                             truncation=1,
                                             randomize_noise=True)[0].detach()
                 # (32, 3, 1024, 1024)
-            loss = clip_loss_models[args.clip_models[0]].global_clip_loss(img=imgs,
-                                                                          text=args.source_class,  # 源域标签str
-                                                                          delta_features=source_text_features,
-                                                                          # (batch_size, 1, n_dim)
-                                                                          is_contrastive=1,
-                                                                          logit_scale=clip_model.logit_scale,
-                                                                          prompt_prefix=prompt_prefix,
-                                                                          target_text=args.target_class,
-                                                                          target_delta_features=target_text_features,
-                                                                          lambda_l=args.lambda_l,
-                                                                          lambda_src=args.lambda_src)
-            # loss = clip_loss_models[args.clip_models[0]].improved_global_clip_loss(img=imgs,
-            #                                                                        text=args.source_class,  # 源域标签str
-            #                                                                        prompt=args.prompt,
-            #                                                                        delta_features=source_text_features,
-            #                                                                        # (batch_size, 1, n_dim)
-            #                                                                        is_contrastive=1,
-            #                                                                        logit_scale=clip_model.logit_scale,
-            #                                                                        prompt_prefix=prompt_prefix,
-            #                                                                        target_text=args.target_class,
-            #                                                                        target_delta_features=target_text_features,
-            #                                                                        lambda_l=args.lambda_l,
-            #                                                                        lambda_src=args.lambda_src)
+            # loss = clip_loss_models[args.clip_models[0]].global_clip_loss(
+            #     img=imgs,
+            #     text=args.source_class,  # 源域标签str
+            #     delta_features=source_text_features,
+            #     # (batch_size, 1, n_dim)
+            #     is_contrastive=1,
+            #     logit_scale=clip_model.logit_scale,
+            #     prompt_prefix=prompt_prefix,
+            #     target_text=args.target_class,
+            #     target_delta_features=target_text_features,
+            #     lambda_l=args.lambda_l,
+            #     lambda_src=args.lambda_src)
+            loss = clip_loss_models[args.clip_models[0]].improved_global_clip_loss(
+                img=imgs,
+                text=args.source_class,  # 源域标签str
+                prompt=args.prompt,
+                delta_features=source_text_features,
+                # (batch_size, 1, n_dim)
+                is_contrastive=1,
+                logit_scale=clip_model.logit_scale,
+                prompt_prefix=prompt_prefix,
+                target_text=args.target_class,
+                target_delta_features=target_text_features,
+                lambda_l=args.lambda_l,
+                lambda_src=args.lambda_src)
             """
             由三部分组成：
             1. 对比学习损失：计算生成的源域prompts与源域图像之间的余弦相似度
@@ -289,7 +291,7 @@ def train(args):
             [sampled_src, sampled_dst], loss = net(sample_w, input_is_latent=True,
                                                    source_text_features=source_text_features,
                                                    target_text_features=target_text_features,
-                                                   templates=prompt_prefix)
+                                                   templates=prompt_prefix)  # "a photo of a"
             # 这里的loss默认是clip_directional_loss: criteria.clip_loss.CLIPLoss.clip_directional_loss
 
             net.zero_grad()

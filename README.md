@@ -211,16 +211,20 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 #### 修改日志
 
-1. 第一次尝试只加载了 `w_encoder` 类及其对应 checkpoint 参数，导致并未将真实图片编码到 StyleGAN 的 W 空间中，没有 inversion 出合理的结果
-2. 第二次尝试使用了 `restyle_e4e_encoder`，但是没有使用 dlib 进行 alignment，也没有使用 restyle 模型在反演时使用的多次进行前向传播来修正 latent code 的策略。此次尝试虽然反演出了合理的人像，但是人像的特征保存能力非常弱
-3. 第三次尝试解决了上一次发现的问题，加入 dlib 提供的 landmark 检测以实现 alignment，并且使用 `run_loop` 函数在 restyle_e4e_encoder 中进行多次前向传播以修正得到的 W 空间的 latent code，效果较好
-4. 对比 pSp 和 e4e encoder，pSp 对人脸图像的还原能力较强，但是会导致目标域图像具有随机的彩色光晕
+1. 第一次尝试只加载了 `w_encoder` 类及其对应 checkpoint 参数，导致并未将真实图片编码到 StyleGAN 的 W 空间中，没有 inversion 出合理的结果。
+2. 第二次尝试使用了 `restyle_e4e_encoder`，但是没有使用 dlib 进行 alignment，也没有使用 restyle 模型在反演时使用的多次进行前向传播来修正 latent code 的策略。此次尝试虽然反演出了合理的人像，但是人像的特征保存能力非常弱。
+3. 第三次尝试解决了上一次发现的问题，加入 dlib 提供的 landmark 检测以实现 alignment，并且使用 `run_loop` 函数在 restyle_e4e_encoder 中进行多次前向传播以修正得到的 W 空间的 latent code，效果较好。
+4. 对比 pSp 和 e4e encoder，pSp 对人脸图像的还原能力较强，但是会导致目标域图像具有随机的彩色光晕。
 
 ## 问题提出与改进
 
+### 改进：Mapper 结构的设计
+
+Mapper 的作用是从 W 空间的隐式代码中学习出符合源域图片特征以及符合目标域文字特征的 prompts。
+
 ### 问题：训练阶段人工 prompts 的作用是什么？
 
-在 IPL 的官方代码实现中，人工设计的 prompts 有两处，一是 `ctx_init`，由命令行参数赋值，即 "a photo of a"，另一处是 utils/text_templates.py 中的 templates，
+在 IPL 的官方代码实现中，人工设计的 prompts 有两处，一是 `ctx_init`，由命令行参数赋值，即 "a photo of a"，另一处是 utils/text_templates.py 中的 templates，下面分别分析这两处的具体作用。
 
 #### ctx_init 的作用（与域标签拼接后的 ctx_init）
 
@@ -232,19 +236,21 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 #### templates 的作用
 
+templates 是提前准备好的一系列字符串，其中字符串的格式全部类似于 `a photo of a {}.`
+
+原始 hhfq 数据集的模板共有 79 个字符串。
+
+与 `ctx_init` 起作用的函数不同，templates 在第一阶段的训练的 domain regularization loss 中使用到的 `get_text_features` 函数起作用，用于与目标域标签进行格式化连接后成为 image-specific prompts 向目标域靠近的方向。即 domain loss 使学习到的 prompts 向以目标域标签为中心的字符串对齐。
+
 #### 思考
 
 IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 prompts 学习到源域图片的特征以及（2）使用域正则化使得 prompts 向目标域标签对齐之外，并没有使用其他与人工设计的 prompts 有关的正则化方式来约束 prompts 的学习，因此人工设计的 prompts 可能并没有起到太大的约束作用。
 
 如果对比学习损失是为了让 Mapper 自监督学习到图片的特征外，那么是否可以对域正则化损失进行改进，约束学习到的 prompts 向人工设计的初始化 prompts 对齐，以实现类似于 Stable Diffusion 类似的 prompts 控制图像生成的效果。
 
-### 改进：Mapper 结构的设计
-
-Mapper 的作用是从 W 空间的隐式代码中学习出符合源域图片特征以及符合目标域文字特征的 prompts。
-
 ### 改进：使学习到的 prompts 向用户自主设计的 prompts 模板对齐
 
-对第一阶段的损失函数做出修改，更新domain loss，使目标域的image-specific prompts与自定义模板对齐。
+对第一阶段的损失函数做出修改，更新domain loss，将原始 domain loss 中使用的以目标域标签为中心的模板更换成自定义模板，使目标域的image-specific prompts与自定义模板对齐。
 
 #### 对 global_clip_loss 的改进
 
@@ -253,3 +259,5 @@ IPL 训练第一阶段的损失函数除了源域 prompts 与源域图像之间�
 对 domain regularization 进行改进，引入开发者自定义的 prompts，约束 Mapper 学习到的目标域 prompts 向开发者自定义的 prompts 对齐，以此来进行 prompt tuning，发挥 prompt learning 的更大优势，并增强自定义性。
 
 #### 对 clip_directional_loss 的改进
+
+IPL 训练第二阶段的损失函数，使用 criteria.clip_loss.CLIPLoss.clip_directional_loss。
