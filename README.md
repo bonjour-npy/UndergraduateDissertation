@@ -93,7 +93,7 @@ Z 空间和 W 空间是 StyleGAN 模型中两种不同的隐变量空间，分�
 
    - W 空间经过特征解耦的隐空间，与 Z 空间相比更加解耦合。
 
-   - 在 StyleGAN 中，W 空间的维度也通常为 512 维，是通过mapping network进行映射得到的，mapping network由PixelNorm层与EqualLinear层构成。以下代码节选自`sg2_model.py`：
+   - 在 StyleGAN 中，W 空间的维度也通常为 512 维，是通过mapping network进行映射得到的，mapping network 由 PixelNorm 层与 EqualLinear 层构成。以下代码节选自`sg2_model.py`：
 
      ```python
      '''mapping network'''
@@ -222,6 +222,45 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 Mapper 的作用是从 W 空间的隐式代码中学习出符合源域图片特征以及符合目标域文字特征的 prompts。
 
+改进后的 Mapper 结构：
+
+```python
+class TransformerMapperV2(nn.Module):
+    """
+    改良版transformer mapper，增加多头注意力，减小transformer encoder的层数，防止学习到的源域图像细节过拟合
+    同时去掉开头的PixelNorm，防止与transformer中的layer normalization冲突
+    并在transformer encoder之后加入Pixel Norm以及全连接层
+    """
+    def __init__(self, opts, n_dim):
+        super(TransformerMapperV2, self).__init__()
+        self.opts = opts
+        self.n_dim = n_dim
+
+        layers = []  # transformer中有layer normalization，不需要进行PixelNorm
+
+        # 自定义Transformer编码器层配置
+        transformer_layer = TransformerEncoderLayer(d_model=512, nhead=3, dim_feedforward=1024, dropout=0.1)
+
+        # 构建Transformer编码器
+        self.transformer_encoder = TransformerEncoder(transformer_layer, num_layers=2)
+        layers.append(self.transformer_encoder)
+
+        # 再过一次PixelNorm以及全连接层，将每个点归一化（除以模长），避免输入noise的极端权重，改善稳定性
+        layers.append(PixelNorm())
+        self.linear = EqualLinear(512, 512, lr_mul=0.01, activation='fused_lrelu')
+        layers.append(self.Linear)
+
+        # 最后一个全连接层，输出维度保持不变
+        self.final_linear = EqualLinear(512, n_dim * opts.n_ctx, lr_mul=0.01, activation='fused_lrelu')
+        layers.append(self.final_linear)
+
+        self.mapping = nn.Sequential(*layers).to(device)
+
+    def forward(self, x):
+        out = self.mapping(x)
+        return out
+```
+
 ### 问题：训练阶段人工 prompts 的作用是什么？
 
 在 IPL 的官方代码实现中，人工设计的 prompts 有两处，一是 `ctx_init`，由命令行参数赋值，即 "a photo of a"，另一处是 utils/text_templates.py 中的 templates，下面分别分析这两处的具体作用。
@@ -251,6 +290,24 @@ IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 pro
 ### 改进：使学习到的 prompts 向用户自主设计的 prompts 模板对齐
 
 对第一阶段的损失函数做出修改，更新domain loss，将原始 domain loss 中使用的以目标域标签为中心的模板更换成自定义模板，使目标域的image-specific prompts与自定义模板对齐。
+
+#### 用于生成 prompts 的 GPT、Claude prompts
+
+中文提示词：
+
+```
+针对将普通人像转换成迪士尼风格人物画像的任务，给出60个描述迪士尼人像特有特征的文字prompt。
+将上述生成的60个prompts放在同一个Python列表中，即每一个prompt作为该列表的字符串元素，输出整个Python列表。
+```
+
+英文提示词：
+
+```
+For the task of converting a {source class} photo into a {target_class} photo,
+provide some text prompts describing the distinctive features of Disney character portraits.
+Put the generated 60 prompts into the same Python list, with each prompt as a string element of the list,
+and output the entire Python list.
+```
 
 #### 对 global_clip_loss 的改进
 

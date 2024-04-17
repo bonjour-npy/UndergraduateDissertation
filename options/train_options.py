@@ -408,15 +408,6 @@ class TrainOptions(object):
             help="text label of target domain"
         )
 
-        ################################
-        # Arguments for improved train #
-        ################################
-        self.parser.add_argument(
-            "--prompt",
-            type=str,
-            help="prompt for improved stage 1 of training"
-        )
-
     def parse(self):
         opts = self.parser.parse_args()
 

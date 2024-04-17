@@ -1,20 +1,50 @@
 """
 Example arguments:
-train_improved.py   --src_label photo \
-                    --tar_label disney \
-                    --frozen_gen_ckpt ./pre_stylegan/stylegan2-ffhq-config-f.pt \
-                    --adapted_gen_ckpt ./adapted_generator/ffhq/disney.pt \
-                    --source_model_type "ffhq" \
-                    --auto_compute \
-                    --n_generate 10 \
-                    --epochs_generate 500 \
-                    --n_ctx \
-                    --ctx_init "a photo of a" \
-                    --prompt "disney, smooth curves, dreamlike, cute, few wrinkles"
+train_improved.py   --frozen_gen_ckpt
+                    ./pre_stylegan/stylegan2-ffhq-config-f.pt
+                    --source_model_type
+                    "ffhq"
+                    --output_interval
+                    100
+                    --save_interval
+                    100
+                    --auto_compute
+                    --source_class
+                    "photo"
+                    --target_class
+                    "disney"
+                    --batch_mapper
+                    32
+                    --lr_mapper
+                    0.05
+                    --iter_mapper
+                    300
+                    --ctx_init
+                    "a photo of a"
+                    --n_ctx
+                    4
+                    --lambda_l
+                    1
+                    --run_stage1
+                    --run_stage2
+                    --batch
+                    2
+                    --lr
+                    0.002
+                    --iter
+                    300
+                    --output_dir
+                    ./output/disney_improved
 
-Prompt for photo -> disney: \
-    "a photo of disney, disney face with smooth curves, dreamlike style disney photo, cute disney face,
-    disney face with few wrinkles, disney face with thin lip"
+prompts for generating prompts in text_templates:
+    中文提示词：
+    “针对将普通人像转换成迪士尼风格人物画像的任务，给出60个描述迪士尼人像特有特征的文字prompt。
+    将上述生成的60个prompts放在同一个Python列表中，即每一个prompt作为该列表的字符串元素，输出整个Python列表。”
+    English prompts:
+    "For the task of converting a {source class} photo into a {target_class} photo,
+    provide some text prompts describing the distinctive features of Disney character portraits.
+    Put the generated 60 prompts into the same Python list, with each prompt as a string element of the list,
+    and output the entire Python list."
 """
 import os
 import numpy as np
