@@ -247,7 +247,6 @@ def train(args):
             loss = clip_loss_models[args.clip_models[0]].improved_global_clip_loss(
                 img=imgs,
                 text=args.source_class,  # 源域标签str
-                prompt=args.prompt,
                 delta_features=source_text_features,
                 # (batch_size, 1, n_dim)
                 is_contrastive=1,
