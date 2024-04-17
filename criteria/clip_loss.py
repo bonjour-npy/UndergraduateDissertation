@@ -116,11 +116,11 @@ class CLIPLoss(torch.nn.Module):
     ################################
     # 添加计算人工设计prompt特征的方法 #
     ################################
-    def get_prompt_features(self, prompt: str, norm: bool = True) -> torch.Tensor:
+    def get_prompt_features(self, prompts: str, norm: bool = True) -> torch.Tensor:
 
-        tokens = clip.tokenize(prompt).to(self.device)
+        prompts_tokens = clip.tokenize(prompts).to(self.device)
 
-        text_features = self.encode_text(tokens).detach()
+        text_features = self.encode_text(prompts_tokens).detach()
 
         if norm:
             text_features /= text_features.norm(dim=-1, keepdim=True)
@@ -412,9 +412,9 @@ class CLIPLoss(torch.nn.Module):
     # 改进stage 1损失函数中的domain regularization #
     ##############################################
 
-    def improved_global_clip_loss(self, img, text, prompt=text_templates, delta_features=None, is_contrastive=0,
-                                  logit_scale=None, prompt_prefix=None, target_text=None, target_delta_features=None,
-                                  lambda_l=1, lambda_src=0) -> torch.Tensor:
+    def improved_global_clip_loss(self, img, text, prompts=text_templates.ffhq_disney_templates, delta_features=None,
+                                  is_contrastive=0, logit_scale=None, prompt_prefix=None, target_text=None,
+                                  target_delta_features=None, lambda_l=1, lambda_src=0) -> torch.Tensor:
         """
         对第一阶段的损失函数做出修改，更新domain loss，使目标域的image-specific prompts与自定义模板对齐
         :param img: 源域生成器输出的图像
@@ -470,7 +470,7 @@ class CLIPLoss(torch.nn.Module):
             ###############################
             # 计算改进设计的prompts的文字编码 #
             ###############################
-            prompt_target_features = self.get_prompt_features(prompt).mean(dim=0)  # 改进设计的prompts特征
+            prompt_target_features = self.get_prompt_features(prompts=prompts).mean(dim=0)  # 改进设计的prompts特征
 
             text_target_features = text_target_features.squeeze(1)  # (batch_size, n_dim)
             text_source_features = text_source_features.squeeze(1)  # (batch_size, n_dim)
