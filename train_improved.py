@@ -57,6 +57,7 @@ from model.ZSSGAN import ZSSGAN, SG2Generator
 from utils.file_utils import save_images
 from utils.training_utils import mixing_noise
 from mapper import latent_mappers
+import utils.text_templates as text_templates
 from options.train_options import TrainOptions
 
 warnings.filterwarnings("ignore")
@@ -202,7 +203,7 @@ def train(args):
     if args.run_stage1:
         # stage 1
         print("stage 1: training mapper")
-        mapper = latent_mappers.TransformerMapperV2(args, n_dim)
+        mapper = latent_mappers.TransformerMapperV1(args, n_dim)
         # 由PixelNorm以及四层EqualLinear构成的Mapper，最终输出n_dim * n_ctx
         m_optim = torch.optim.Adam(mapper.mapping.parameters(), lr=args.lr_mapper)
 
@@ -244,18 +245,15 @@ def train(args):
             #     target_delta_features=target_text_features,
             #     lambda_l=args.lambda_l,
             #     lambda_src=args.lambda_src)
-            loss = clip_loss_models[args.clip_models[0]].improved_global_clip_loss(
-                img=imgs,
-                text=args.source_class,  # 源域标签str
-                delta_features=source_text_features,
-                # (batch_size, 1, n_dim)
-                is_contrastive=1,
-                logit_scale=clip_model.logit_scale,
-                prompt_prefix=prompt_prefix,
-                target_text=args.target_class,
-                target_delta_features=target_text_features,
-                lambda_l=args.lambda_l,
-                lambda_src=args.lambda_src)
+            loss = clip_loss_models[args.clip_models[0]].global_clip_loss_v3(img=imgs, text=args.source_class,
+                                                                             prompts=text_templates.ffhq_disney_templates,
+                                                                             delta_features=source_text_features,
+                                                                             is_contrastive=1,
+                                                                             logit_scale=clip_model.logit_scale,
+                                                                             prompt_prefix=prompt_prefix,
+                                                                             target_text=args.target_class,
+                                                                             target_delta_features=target_text_features,
+                                                                             lambda_l=args.lambda_l)
             """
             由三部分组成：
             1. 对比学习损失：计算生成的源域prompts与源域图像之间的余弦相似度
@@ -289,7 +287,7 @@ def train(args):
             print("loading mapper...")
             checkpoint_path = os.path.join(ckpt_dir_m, "mapper.pt")
             checkpoint = torch.load(checkpoint_path, map_location=device)
-            mapper = latent_mappers.TransformerMapperV2(args, n_dim)
+            mapper = latent_mappers.TransformerMapperV1(args, n_dim)
             mapper.load_state_dict(checkpoint["m"], strict=True)
         mapper.eval()
         g_optim = torch.optim.Adam(

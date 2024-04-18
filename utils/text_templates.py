@@ -191,5 +191,9 @@ ffhq_disney_templates = [
     "flawlessly smooth shaping of disney character hair",
     "playful close up of disney style character hair",
     "soft lighting on texture of disney character hair",
-    "simplified lacking details disney character hair"
+    "simplified lacking details disney character hair",
+    "a cute disney character photo without eye-bags",
+    "a cute disney character photo without eyelashes",
+    "a cute disney character photo without eye-bags",
+    "a cute disney character photo without eyelashes",
 ]

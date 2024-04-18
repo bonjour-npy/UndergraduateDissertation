@@ -267,19 +267,18 @@ class CLIPLoss(torch.nn.Module):
 
         return self.direction_loss(edit_direction, self.target_direction).mean()  # 最终计算文字方向和图像方向之间的余弦相似度
 
-    def improved_clip_directional_loss(self, src_img: torch.Tensor, source_class, target_img: torch.Tensor,
-                                       target_class,
-                                       source_delta_features=None, target_delta_features=None,
-                                       templates=None) -> torch.Tensor:
+    def clip_directional_loss_v2(self, src_img: torch.Tensor, source_class, target_img: torch.Tensor,
+                                 target_class, prompts=text_templates.ffhq_disney_templates,
+                                 source_delta_features=None, target_delta_features=None,
+                                 templates=None) -> torch.Tensor:
         """
-        论文中提到的改进版Directional CLIP Loss，训练第二阶段的损失函数
-        target_direction（text_direction）即生成的源域和目标域prompts特征的差值，edit_direction是生成的源域和目标域图像特征的差值
-        最后再将两个direction送入directional_loss中，计算余弦相似度并以(1-cosine_sim)作为最终损失函数
-        也就是使源域与目标域图像之间的差异逼近二者prompts文字之间的差异
+        训练第二阶段的优化版损失函数
+        直接使用自定义模板来对
         :param src_img: 源域图像
         :param source_class: 源域标签
         :param target_img: 目标域图像
         :param target_class: 目标域标签
+        :param prompts: 人工设计的优化prompts
         :param source_delta_features: image-specific prompts与source class label concat之后送入text encoder的结果
         :param target_delta_features: image-specific prompts与target class label concat之后送入text encoder的结果
         :param templates: 第二阶段损失函数传入的templates是prompt_prefix，即ctx_init，由命令行输入决定，默认为"a photo of a"
@@ -298,11 +297,12 @@ class CLIPLoss(torch.nn.Module):
             # 向image-specific prompts与源域label concat后的编码中加上"a photo of a 源域标签"的编码
             source_text_features = source_delta_features / source_delta_features.clone().norm(dim=-1, keepdim=True)
 
-            # target_class
-            target_text_features = self.get_text_features(target_class, templates=[templates], norm=False)
-            # 计算"a photo of a" + 目标域标签的文字编码
+            ##########################################################
+            # 计算prompts的特征并将其加入至image-specific prompts的特征中 #
+            ##########################################################
+            prompt_target_features = self.get_prompt_features(prompts=prompts).mean(dim=0)  # 改进设计的prompts特征
             for i in range(len(target_delta_features)):
-                target_delta_features[i] = torch.add(target_delta_features[i], target_text_features)
+                target_delta_features[i] = torch.add(target_delta_features[i], prompt_target_features)
             # 向image-specific prompts与目标域label concat后的编码中加上"a photo of a 目标域标签"的编码
             target_text_features = target_delta_features / target_delta_features.clone().norm(dim=-1, keepdim=True)
 
@@ -412,14 +412,14 @@ class CLIPLoss(torch.nn.Module):
     # 改进stage 1损失函数中的domain regularization #
     ##############################################
 
-    def improved_global_clip_loss(self, img, text, prompts=text_templates.ffhq_disney_templates, delta_features=None,
-                                  is_contrastive=0, logit_scale=None, prompt_prefix=None, target_text=None,
-                                  target_delta_features=None, lambda_l=1, lambda_src=0) -> torch.Tensor:
+    def global_clip_loss_v2(self, img, text, prompts=text_templates.ffhq_disney_templates, delta_features=None,
+                            is_contrastive=0, logit_scale=None, prompt_prefix=None, target_text=None,
+                            target_delta_features=None, lambda_l=1, lambda_src=0) -> torch.Tensor:
         """
         对第一阶段的损失函数做出修改，更新domain loss，使目标域的image-specific prompts与自定义模板对齐
         :param img: 源域生成器输出的图像
         :param text: 源域标签
-        :param prompt: 用于优化domain loss的模板
+        :param prompts: 用于优化domain loss的模板
         :param delta_features: 生成的image-specific prompts与源域标签concat后的文字特征，(batch_size, 1, n_dim)
         :param is_contrastive:
         :param logit_scale:
@@ -464,9 +464,6 @@ class CLIPLoss(torch.nn.Module):
             text_target_features = delta_target_features / delta_target_features.clone().norm(dim=-1, keepdim=True)
             # 生成的目标域prompts，(batch_size, 1, n_dim)
 
-            # templates_source_features = self.get_text_features(text).mean(dim=0)  # 源域标签特征
-            # templates_target_features = self.get_text_features(target_text).mean(dim=0)  # 目标域标签特征
-
             ###############################
             # 计算改进设计的prompts的文字编码 #
             ###############################
@@ -475,17 +472,99 @@ class CLIPLoss(torch.nn.Module):
             text_target_features = text_target_features.squeeze(1)  # (batch_size, n_dim)
             text_source_features = text_source_features.squeeze(1)  # (batch_size, n_dim)
 
-            # templates_source_features = templates_source_features.unsqueeze(0).expand(len(text_source_features), -1)
-            # templates_target_features = templates_target_features.unsqueeze(0).expand(len(text_target_features), -1)
-
             ###############################
             # 预处理改进设计的prompts文字特征 #
             ###############################
             prompt_target_features = prompt_target_features.unsqueeze(0).expand(len(text_target_features), -1)
 
-            # 将生成的prompts与域标签做direction_loss（这里生成的prompts是与域标签做过concat且与初始化的ctx_init+域标签做过element-wise加法的）
-            # target_loss = self.direction_loss(text_target_features, templates_target_features).mean()
-            # source_loss = self.direction_loss(text_source_features, templates_source_features).mean()
+            ################################################################################
+            # 计算目标域prompts与改进设计prompts的directional loss作为新的domain regularization #
+            ################################################################################
+            prompt_loss = self.direction_loss(text_target_features, prompt_target_features).mean()
+
+            # cosine similarity as logits
+            logit_scale = logit_scale.exp()
+            logits_per_image = logit_scale * image_features @ text_source_features.squeeze(1).t()
+            # (batch_size, batch_size)
+            logits_per_text = torch.transpose(logits_per_image, dim0=0, dim1=1)
+            ground_truth = torch.arange(len(image_features), dtype=torch.long, device=self.device)  # 每一个元素代表每行的正确标签索引
+
+            total_loss = (self.loss_img(logits_per_image, ground_truth) + self.loss_txt(logits_per_text,
+                                                                                        ground_truth)) / 2
+            """
+            total_loss计算了对比学习的损失函数
+            source_loss是paper中的domain_loss
+            lambda_src是paper公式6的lambda，域损失函数的正则项系数
+            """
+            # return total_loss + lambda_l * (target_loss + lambda_src * source_loss)
+            return total_loss + lambda_l * prompt_loss
+
+        else:
+            if not isinstance(text, list):
+                text = [text]
+
+            tokens = clip.tokenize(text).to(self.device)
+            image = self.preprocess(img)
+
+            logits_per_image, _ = self.model(image, tokens)
+
+            return (1. - logits_per_image / 100).mean()
+
+    def global_clip_loss_v3(self, img, text, prompts=text_templates.ffhq_disney_templates, delta_features=None,
+                            is_contrastive=0, logit_scale=None, prompt_prefix=None, target_text=None,
+                            target_delta_features=None, lambda_l=1) -> torch.Tensor:
+        """
+        对第一阶段的损失函数做出修改，更新domain loss，使目标域的image-specific prompts与自定义模板对齐
+        并且直接使用自定义模板来对image-specific prompts进行element-wise的加法
+        :param img: 源域生成器输出的图像
+        :param text: 源域标签
+        :param prompts: 用于优化domain loss的模板
+        :param delta_features: 生成的image-specific prompts与源域标签concat后的文字特征，(batch_size, 1, n_dim)
+        :param is_contrastive:
+        :param logit_scale:
+        :param prompt_prefix: ctx_init
+        :param target_text: 目标域标签
+        :param target_delta_features: 生成的image-specific prompts与目标域标签concat后的文字特征，(batch_size, 1, n_dim)
+        :param lambda_l:
+        :return:
+        """
+        if is_contrastive:
+
+            # image features
+            image = self.preprocess(img)  # resize为(batch_size, channel, 224, 224)
+            """
+            0：Normalize(mean=[-1.0, -1.0, -1.0], std=[2.0, 2.0, 2.0])
+            1：Resize(size=224, interpolation=bicubic, max_size=None, antialias=True)
+            2：CenterCrop(size=(224, 224))
+            3：Normalize(mean=(0.48145466, 0.4578275, 0.40821073), std=(0.26862954, 0.26130258, 0.27577711))
+            """
+            image_features = self.model.encode_image(image).detach()  # 使用ViT编码(batch_size, n_dim)
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            # 归一化，方便后续计算余弦相似度(batch_size, n_dim)
+
+            delta_source_features = torch.empty_like(delta_features)  # (batch_size, 1, n_dim)
+            delta_target_features = torch.empty_like(target_delta_features)
+
+            # 计算prompts的特征并将其加入至image-specific prompts的特征中
+            prompt_target_features = self.get_prompt_features(prompts=prompts).mean(dim=0)  # 改进设计的prompts特征
+            # (n_dim)
+            for i in range(len(delta_features)):  # 将生成的prompt沿batch_size维度与init prompt做element-wise相加
+                delta_source_features[i] = torch.add(delta_features[i], prompt_target_features)
+                delta_target_features[i] = torch.add(target_delta_features[i], prompt_target_features)
+            # (batch_size, 1, n_dim)
+
+            text_source_features = delta_source_features / delta_source_features.clone().norm(dim=-1, keepdim=True)
+            # 生成的源域prompts，(batch_size, 1, n_dim)
+            text_target_features = delta_target_features / delta_target_features.clone().norm(dim=-1, keepdim=True)
+            # 生成的目标域prompts，(batch_size, 1, n_dim)
+
+            text_target_features = text_target_features.squeeze(1)  # (batch_size, n_dim)
+            text_source_features = text_source_features.squeeze(1)  # (batch_size, n_dim)
+
+            ###############################
+            # 预处理改进设计的prompts文字特征 #
+            ###############################
+            prompt_target_features = prompt_target_features.unsqueeze(0).expand(len(text_target_features), -1)
 
             ################################################################################
             # 计算目标域prompts与改进设计prompts的directional loss作为新的domain regularization #
@@ -647,11 +726,14 @@ class CLIPLoss(torch.nn.Module):
                                                                          target_class)
 
         if self.lambda_direction:  # default
-            clip_loss += self.lambda_direction * self.clip_directional_loss(src_img, source_class, target_img,
-                                                                            target_class,
-                                                                            source_delta_features=source_delta_features,
-                                                                            target_delta_features=target_delta_features,
-                                                                            templates=templates)
+            clip_loss += self.lambda_direction * self.clip_directional_loss_v2(
+                src_img, source_class, target_img,
+                target_class,
+                prompts=text_templates.ffhq_disney_templates,
+                source_delta_features=source_delta_features,
+                target_delta_features=target_delta_features,
+                templates=templates
+            )
 
         if self.lambda_manifold:
             clip_loss += self.lambda_manifold * self.clip_angle_loss(src_img, source_class, target_img, target_class)
