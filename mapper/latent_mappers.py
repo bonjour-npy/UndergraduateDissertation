@@ -124,20 +124,20 @@ class TransformerMapperV2(nn.Module):
         layers = []  # transformer中有layer normalization，不需要进行PixelNorm
 
         # 自定义Transformer编码器层配置
-        transformer_layer = TransformerEncoderLayer(d_model=512, nhead=2, dim_feedforward=1024, dropout=0.1)
+        transformer_layer = TransformerEncoderLayer(d_model=512, nhead=4, dim_feedforward=1024, dropout=0.1)
 
         # 构建Transformer编码器
         self.transformer_encoder = TransformerEncoder(transformer_layer, num_layers=2)
         layers.append(self.transformer_encoder)
 
         # 再过一层PixelNorm以及全连接层，将每个点归一化（除以模长），避免输入noise的极端权重，改善稳定性
-        layers.append(PixelNorm())
+        # layers.append(PixelNorm())
 
-        self.linear = EqualLinear(512, 512, lr_mul=0.01, activation='fused_lrelu')
+        self.linear = EqualLinear(512, 1024, lr_mul=0.01, activation='fused_lrelu')
         layers.append(self.linear)
 
         # 最后一个全连接层，输出维度保持不变
-        self.final_linear = EqualLinear(512, n_dim * opts.n_ctx, lr_mul=0.01, activation='fused_lrelu')
+        self.final_linear = EqualLinear(1024, n_dim * opts.n_ctx, lr_mul=0.01, activation='fused_lrelu')
         layers.append(self.final_linear)
 
         self.mapping = nn.Sequential(*layers).to(device)

@@ -287,6 +287,10 @@ IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 pro
 
 对第一阶段的损失函数做出修改，更新domain loss，将原始 domain loss 中使用的以目标域标签为中心的模板更换成自定义模板，使目标域的image-specific prompts与自定义模板对齐。
 
+经过多次实验和分析，刻意让 Mapper 输出的image-specific prompts 去逼近用户设置的 prompts，会产生一些隐式细节的丢失。因为 Mapper 本身存在的目的就是学习出人工无法准确描述的细节（包括源域图像的自身细节以及目标域风格的细节），如果对 Mapper 的损失函数中加上太多人为设计的限制，很显然会造成细节的丢失并且出现同质的现象。
+
+因此，为了达到既使用精心设计的 prompts 来优化域适应，同时又不影响 Mapper 自主学习双域特征，在原有两个损失函数的基础上，新增一个权重较小的损失函数，用于将 Mapper 学习到的目标域 prompts 向自定义模板对齐。
+
 #### 用于生成 prompts 的 GPT、Claude prompts
 
 中文提示词：

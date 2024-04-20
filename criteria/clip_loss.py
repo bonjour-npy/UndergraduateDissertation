@@ -369,8 +369,8 @@ class CLIPLoss(torch.nn.Module):
             text_target_features = delta_target_features / delta_target_features.clone().norm(dim=-1, keepdim=True)
             # (batch_size, n_dim)
 
-            templates_source_features = self.get_text_features(text).mean(dim=0)  # 源域标签特征
-            templates_target_features = self.get_text_features(target_text).mean(dim=0)  # 目标域标签特征
+            templates_source_features = self.get_text_features(text).mean(dim=0)  # 源域模板特征，将众多模板特征求均值
+            templates_target_features = self.get_text_features(target_text).mean(dim=0)  # 目标域模板特征
 
             text_target_features = text_target_features.squeeze(1)  # (batch_size, n_dim)
             text_source_features = text_source_features.squeeze(1)
@@ -545,12 +545,15 @@ class CLIPLoss(torch.nn.Module):
             delta_source_features = torch.empty_like(delta_features)  # (batch_size, 1, n_dim)
             delta_target_features = torch.empty_like(target_delta_features)
 
-            # 计算prompts的特征并将其加入至image-specific prompts的特征中
-            prompt_target_features = self.get_prompt_features(prompts=prompts).mean(dim=0)  # 改进设计的prompts特征
+            # 计算ctx_init + source/target label的特征并将其分别加入至image-specific prompts的源域和目标域特征中
+            prompt_prefix = prompt_prefix + " {}."  # 方便后续使用string的format方法向{}中加入域标签，"a photo of a {}."
+            init_source_features = self.get_text_features(text, templates=[prompt_prefix], norm=False)  # (1, n_dim)
+            init_target_features = self.get_text_features(target_text, templates=[prompt_prefix],
+                                                          norm=False)  # (1, n_dim)
             # (n_dim)
             for i in range(len(delta_features)):  # 将生成的prompt沿batch_size维度与init prompt做element-wise相加
-                delta_source_features[i] = torch.add(delta_features[i], prompt_target_features)
-                delta_target_features[i] = torch.add(target_delta_features[i], prompt_target_features)
+                delta_source_features[i] = torch.add(delta_features[i], init_source_features)
+                delta_target_features[i] = torch.add(target_delta_features[i], init_target_features)
             # (batch_size, 1, n_dim)
 
             text_source_features = delta_source_features / delta_source_features.clone().norm(dim=-1, keepdim=True)
@@ -561,9 +564,16 @@ class CLIPLoss(torch.nn.Module):
             text_target_features = text_target_features.squeeze(1)  # (batch_size, n_dim)
             text_source_features = text_source_features.squeeze(1)  # (batch_size, n_dim)
 
+            templates_target_features = self.get_text_features(target_text).mean(dim=0)  # 目标域模板特征，众多模板的均值
+            templates_target_features = templates_target_features.unsqueeze(0).expand(len(text_target_features), -1)
+
+            # 将生成的目标域prompts与模板+域标签做direction_loss
+            target_loss = self.direction_loss(text_target_features, templates_target_features).mean()
+
             ###############################
             # 预处理改进设计的prompts文字特征 #
             ###############################
+            prompt_target_features = self.get_prompt_features(prompts=prompts).mean(dim=0)  # 改进设计的prompts特征
             prompt_target_features = prompt_target_features.unsqueeze(0).expand(len(text_target_features), -1)
 
             ################################################################################
@@ -586,7 +596,7 @@ class CLIPLoss(torch.nn.Module):
             lambda_src是paper公式6的lambda，域损失函数的正则项系数
             """
             # return total_loss + lambda_l * (target_loss + lambda_src * source_loss)
-            return total_loss + lambda_l * prompt_loss
+            return total_loss + lambda_l * (target_loss + 0.3 * prompt_loss)
 
         else:
             if not isinstance(text, list):
@@ -726,10 +736,10 @@ class CLIPLoss(torch.nn.Module):
                                                                          target_class)
 
         if self.lambda_direction:  # default
-            clip_loss += self.lambda_direction * self.clip_directional_loss_v2(
+            clip_loss += self.lambda_direction * self.clip_directional_loss(
                 src_img, source_class, target_img,
                 target_class,
-                prompts=text_templates.ffhq_disney_templates,
+                # prompts=text_templates.ffhq_disney_templates,
                 source_delta_features=source_delta_features,
                 target_delta_features=target_delta_features,
                 templates=templates

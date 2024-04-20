@@ -38,13 +38,15 @@ train_improved.py   --frozen_gen_ckpt
 
 prompts for generating prompts in text_templates:
     中文提示词：
-    “针对将普通人像转换成迪士尼风格人物画像的任务，给出60个描述迪士尼人像特有特征的文字prompt。
-    将上述生成的60个prompts放在同一个Python列表中，即每一个prompt作为该列表的字符串元素，输出整个Python列表。”
+        针对将普通人像转换成迪士尼风格人物画像的任务，给出60个描述迪士尼人像特有特征的文字prompt。
+        将上述生成的60个prompts放在同一个Python列表中，即每一个prompt作为该列表的字符串元素，输出整个Python列表。
     English prompts:
-    "For the task of converting a {source class} photo into a {target_class} photo,
-    provide some text prompts describing the distinctive features of Disney character portraits.
-    Put the generated 60 prompts into the same Python list, with each prompt as a string element of the list,
-    and output the entire Python list."
+        For the task of converting a {source class} photo into a {target_class} photo,
+        provide some text prompts describing the distinctive features of {target_class} portraits.
+        Put the generated 50 prompts into the same Python list, with each prompt as a string element of the list,
+        and output the entire Python list.
+        Here is some examples:
+        a photo of a {target_class}, {target_class} photo with {target_class features}
 """
 import os
 import numpy as np
@@ -203,9 +205,10 @@ def train(args):
     if args.run_stage1:
         # stage 1
         print("stage 1: training mapper")
-        mapper = latent_mappers.TransformerMapperV1(args, n_dim)
+        mapper = latent_mappers.TransformerMapperV2(args, n_dim)
         # 由PixelNorm以及四层EqualLinear构成的Mapper，最终输出n_dim * n_ctx
         m_optim = torch.optim.Adam(mapper.mapping.parameters(), lr=args.lr_mapper)
+        # m_optim = torch.optim.Adam(mapper.parameters(), lr=args.lr_mapper)
 
         for i in tqdm(range(args.iter_mapper)):  # stage 1的每个epoch
             mapper.train()
@@ -287,7 +290,7 @@ def train(args):
             print("loading mapper...")
             checkpoint_path = os.path.join(ckpt_dir_m, "mapper.pt")
             checkpoint = torch.load(checkpoint_path, map_location=device)
-            mapper = latent_mappers.TransformerMapperV1(args, n_dim)
+            mapper = latent_mappers.TransformerMapperV2(args, n_dim)
             mapper.load_state_dict(checkpoint["m"], strict=True)
         mapper.eval()
         g_optim = torch.optim.Adam(
