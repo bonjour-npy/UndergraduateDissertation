@@ -116,6 +116,7 @@ class TransformerMapperV2(nn.Module):
     同时去掉开头的PixelNorm，防止与transformer中的layer normalization冲突
     并在transformer encoder之后加入Pixel Norm以及全连接层
     """
+
     def __init__(self, opts, n_dim):
         super(TransformerMapperV2, self).__init__()
         self.opts = opts
@@ -138,6 +139,44 @@ class TransformerMapperV2(nn.Module):
 
         # 最后一个全连接层，输出维度保持不变
         self.final_linear = EqualLinear(1024, n_dim * opts.n_ctx, lr_mul=0.01, activation='fused_lrelu')
+        layers.append(self.final_linear)
+
+        self.mapping = nn.Sequential(*layers).to(device)
+
+    def forward(self, x):
+        out = self.mapping(x)
+        return out
+
+
+class TransformerMapperV3(nn.Module):
+    """
+    改良版transformer mapper，增加多头注意力，减小transformer encoder的层数，防止学习到的源域图像细节过拟合
+    同时去掉开头的PixelNorm，防止与transformer中的layer normalization冲突
+    并在transformer encoder之后加入Pixel Norm以及全连接层
+    """
+
+    def __init__(self, opts, n_dim):
+        super(TransformerMapperV3, self).__init__()
+        self.opts = opts
+        self.n_dim = n_dim
+
+        layers = []  # transformer中有layer normalization，不需要进行PixelNorm
+
+        # 自定义Transformer编码器层配置
+        transformer_layer = TransformerEncoderLayer(d_model=512, nhead=2, dim_feedforward=1024, dropout=0.1)
+
+        # 构建Transformer编码器
+        self.transformer_encoder = TransformerEncoder(transformer_layer, num_layers=2)
+        layers.append(self.transformer_encoder)
+
+        # 再过一层PixelNorm以及全连接层，将每个点归一化（除以模长），避免输入noise的极端权重，改善稳定性
+        # layers.append(PixelNorm())
+
+        self.linear = EqualLinear(512, 512, lr_mul=0.01, activation='fused_lrelu')
+        layers.append(self.linear)
+
+        # 最后一个全连接层，输出维度保持不变
+        self.final_linear = EqualLinear(512, n_dim * opts.n_ctx, lr_mul=0.01, activation='fused_lrelu')
         layers.append(self.final_linear)
 
         self.mapping = nn.Sequential(*layers).to(device)

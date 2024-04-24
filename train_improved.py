@@ -205,7 +205,7 @@ def train(args):
     if args.run_stage1:
         # stage 1
         print("stage 1: training mapper")
-        mapper = latent_mappers.TransformerMapperV2(args, n_dim)
+        mapper = latent_mappers.TransformerMapperV3(args, n_dim)
         # 由PixelNorm以及四层EqualLinear构成的Mapper，最终输出n_dim * n_ctx
         m_optim = torch.optim.Adam(mapper.mapping.parameters(), lr=args.lr_mapper)
         # m_optim = torch.optim.Adam(mapper.parameters(), lr=args.lr_mapper)
@@ -290,7 +290,7 @@ def train(args):
             print("loading mapper...")
             checkpoint_path = os.path.join(ckpt_dir_m, "mapper.pt")
             checkpoint = torch.load(checkpoint_path, map_location=device)
-            mapper = latent_mappers.TransformerMapperV2(args, n_dim)
+            mapper = latent_mappers.TransformerMapperV3(args, n_dim)
             mapper.load_state_dict(checkpoint["m"], strict=True)
         mapper.eval()
         g_optim = torch.optim.Adam(

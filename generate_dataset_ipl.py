@@ -78,8 +78,7 @@ def generate(args):
                     0]
             sample_src = \
                 generator_frozen(sample_w, input_is_latent=True, truncation=args.sample_truncation,
-                                 randomize_noise=False)[
-                    0]
+                                 randomize_noise=False)[0]
 
         # 保存一次对比结果
         image_com = torch.cat([sample_src, sample], dim=0)

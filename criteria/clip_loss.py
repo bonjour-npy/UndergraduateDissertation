@@ -596,7 +596,7 @@ class CLIPLoss(torch.nn.Module):
             lambda_src是paper公式6的lambda，域损失函数的正则项系数
             """
             # return total_loss + lambda_l * (target_loss + lambda_src * source_loss)
-            return total_loss + lambda_l * (target_loss + 0.3 * prompt_loss)
+            return total_loss + lambda_l * (target_loss + 0.2 * prompt_loss)
 
         else:
             if not isinstance(text, list):
