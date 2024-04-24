@@ -1,0 +1,25 @@
+{
+  "port": 3000,
+  "device": "cuda",
+  "website": {
+    "name": "Demo",
+    "title": "Demo",
+    "description": "Change this description by modify config.json.",
+    "source_license": "MIT",
+    "license_link": "https://github.com/bonjour-npy/UndergraduateDissertation?tab=MIT-1-ov-file",
+    "source_link": "https://github.com/bonjour-npy/UndergraduateDissertation",
+    "help_link": "https://github.com/bonjour-npy/UndergraduateDissertation",
+    "owner_name": "Peiyang Ni",
+    "owner_link": "https://github.com/bonjour-npy"
+  },
+  "models": {
+    "ffhq_disney": {
+      "name": "迪士尼风格人像",
+      "description": "使用 ffhq_disney 将写实人像转换为迪士尼风格人像"
+    },
+    "starganv2_afhq": {
+      "name": "StarGAN 宠物图像",
+      "description": "宠物图像的风格变换"
+    }
+  }
+}

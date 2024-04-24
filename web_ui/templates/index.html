@@ -1,0 +1,38 @@
+{% include './partials/header.html' %}
+
+<div class="normal-container">
+  <div class="banner">
+    <img src="static/banner.jpg" alt="Website Banner">
+    <div class="banner-text">
+      <div class="banner-title">
+        <h1>基于 Prompt Learning 的视觉-语言大模型<br>在图像生成中的应用与研究</h1>
+      </div>
+      <div class="banner-description">
+        <p>采用 Prompt Learning，使 StyleGAN 模型完成零样本域适应</p>
+      </div>
+    </div>
+  </div>
+
+  {% include './partials/message.html' %}
+
+  <div class="page-card-list">
+    {% for mode_id, model in cfg.models.items() %}
+      <div class="box">
+        <article class="media">
+          <div class="media-content">
+            <div class="content">
+              <div class="page-card-title"><a href="/model/{{ mode_id }}">{{ model['name'] }}</a>
+              </div>
+              <div class="page-card-text">
+                {{ model['description'] }}
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+{% include './partials/footer.html' %}
