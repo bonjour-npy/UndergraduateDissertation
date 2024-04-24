@@ -85,7 +85,9 @@ async function StyleGANv2Generate() {
     if (isRef) {
         mode = "reference"  // 使用参考图像生成
         let ref_img = document.getElementById("refImage").files[0];
+        // let ref_img_url = URL.createObjectURL(ref_img);
         form.append("ref_img", ref_img, "ref_img");
+        // form.append("ref_img_url", ref_img_url);
     }
     form.append("model", "ffhq_disney");
     form.append("seed", seed);

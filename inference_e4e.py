@@ -20,16 +20,12 @@ warnings.filterwarnings("ignore")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def run_alignment(image_path):
-    shape_predictor_path = "./pretrained_models/shape_predictor_68_face_landmarks.dat"
-    shape_predictor_GTX_path = "./pretrained_models/shape_predictor_68_face_landmarks_GTX.dat"
-    if not os.path.exists(shape_predictor_path):
-        print('Downloading files for aligning face image...')
-        os.system('wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2')
-        os.system('bzip2 -dk shape_predictor_68_face_landmarks.dat.bz2')
-        print('Done.')
-    # print(f"Loading shape predictor from {shape_predictor_path}\n")
-    # predictor = dlib.shape_predictor(shape_predictor_path)
+def run_alignment(image_path, shape_predictor_GTX_path="./pretrained_models/shape_predictor_68_face_landmarks_GTX.dat"):
+    # if not os.path.exists(shape_predictor_path):
+    #     print('Downloading files for aligning face image...')
+    #     os.system('wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2')
+    #     os.system('bzip2 -dk shape_predictor_68_face_landmarks.dat.bz2')
+    #     print('Done.')
     print(f"Loading shape predictor from {shape_predictor_GTX_path}\n")
     predictor = dlib.shape_predictor(shape_predictor_GTX_path)
     aligned_image = align_face(filepath=image_path, predictor=predictor)
