@@ -218,20 +218,36 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 ### Web UI
 
-参考 MIT 开源项目 [pytorch-deployment](https://github.com/songquanpeng/pytorch-deployment) 进行生成模型的 Web UI 部署。参考项目使用的是 [StarGANv2](https://github.com/clovaai/stargan-v2) 模型，对其进行优化使得其可以部署 StyleGAN 模型，每个单独的 HTML 网页可以完成两种功能：
+参考 MIT 开源项目 [pytorch-deployment](https://github.com/songquanpeng/pytorch-deployment) 进行生成模型的 Web UI 部署。参考项目使用的是 [StarGANv2](https://github.com/clovaai/stargan-v2) 模型，对其进行优化使得其可以部署 StyleGAN 模型。
 
-1. 使用参考图像进行零样本跨域适应
+分别对人像和宠物图像生成了两个单独的卡片和 HTML 网页，网页可以完成两种功能：
+
+1. 使用参考图像进行零样本跨域适应，同时可以在网页下拉框中选择预期的目标域风格（由于没有合适的 restyle encoder，宠物图像不支持选择参考图像）
 2. 直接使用随机数生成源域图像并进行零样本跨域适应
 
 UI 独立代码可以参考本人仓库 [stylegan-ui](https://github.com/bonjour-npy/stylegan-ui)，但功能有限，完整的 UI 代码已经合并到主程序中，请参考 `./web_ui` 中的具体代码。
 
-部分效果图：
+#### 部分效果展示图
 
-![image-20240425174213119](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425174213119.png)
+主页：
 
-![image-20240425174232964](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425174232964.png)
+![image-20240425222721486](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222721486.png)
 
-![image-20240425174325028](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425174325028.png)
+人物画像的零样本域适应（初始状态）：
+
+![image-20240425222814145](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222814145.png)
+
+人物画像的零样本域适应（使用参考图像生成状态）：
+
+![image-20240425222843497](C:\Users\23663\AppData\Roaming\Typora\typora-user-images\image-20240425222843497.png)
+
+宠物画像的零样本域适应（初始状态）：
+
+![image-20240425223239412](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425223239412.png)
+
+宠物画像的零样本域适应（使用随机数生成状态）：
+
+![image-20240425223227958](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425223227958.png)
 
 ## 问题提出与改进
 

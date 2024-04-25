@@ -107,3 +107,25 @@ async function StyleGANv2Generate() {
         showErrorMessage(data.message);
     }
 }
+
+async function StyleGANv2GenerateAFHQ() {
+    let form = new FormData();
+    let seed = document.getElementById('seed').value;
+    let tar_style = document.getElementById('y').value;
+    let mode = "latent";  // 使用随机种子生成
+    form.append("tar_style", tar_style);
+    form.append("model", "styleganv2_afhq");
+    form.append("seed", seed);
+    form.append("mode", mode);
+    let res = await fetch("/api/model", {
+        method: 'post',
+        body: form
+    });
+    let data = await res.json();
+    if (data.success) {
+        document.getElementById('showSrcImage').src = "/" + data.data[0];
+        document.getElementById('showResImage').src = "/" + data.data[1];
+    } else {
+        showErrorMessage(data.message);
+    }
+}

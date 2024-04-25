@@ -20,10 +20,6 @@
     "styleganv2_afhq": {
       "name": "StyleGAN 宠物画像的零样本域适应",
       "description": "使用 Prompt Learning 技术实现在 AFHQ 数据上预训练的 StyleGAN 模型的零样本跨域适应"
-    },
-    "starganv2_afhq": {
-      "name": "StarGAN 宠物图像",
-      "description": "宠物图像的风格变换"
     }
   }
 }
