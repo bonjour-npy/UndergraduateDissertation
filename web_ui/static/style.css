@@ -297,9 +297,8 @@ span.line {
 /* 样式调整，确保每列元素之间的间距相同 */
 /* 设置每个 column 的样式 */
 .column {
-    width: 30%; /* 设置每个 column 的宽度为 30% */
     text-align: center; /* 居中文本内容 */
-    padding: 10px; /* 添加内边距以增加内容与列边界之间的间距 */
+    padding: 1em; /* 添加内边距以增加内容与列边界之间的间距 */
 }
 
 .radio {

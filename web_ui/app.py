@@ -1,7 +1,7 @@
 from flask import Flask, render_template, send_from_directory, request
 from munch import Munch
 
-from web_ui.models import StarGANv2, StyleGANv2
+from web_ui.models import StarGANv2, StyleGANv2, StyleGANv2_AFHQ
 from web_ui.utils import load_cfg, cache_path
 
 cfg = load_cfg()
@@ -47,7 +47,7 @@ def model_inference():
         if model_name == 'styleganv2_ffhq':  # request.form['model']
             res = StyleGANv2.controller(request)
         if model_name == 'styleganv2_afhq':
-            res = StyleGANv2.controller(request)
+            res = StyleGANv2_AFHQ.controller(request)
         else:
             res.message = f"no such model: {model_name}"
     except Exception as e:
@@ -71,6 +71,7 @@ def predict(model_name):
 
 # StarGANv2.init()
 StyleGANv2.init()
+StyleGANv2_AFHQ.init()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=cfg.port, debug=True)
