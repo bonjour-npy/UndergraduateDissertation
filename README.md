@@ -239,7 +239,7 @@ UI 独立代码可以参考本人仓库 [stylegan-ui](https://github.com/bonjour
 
 人物画像的零样本域适应（使用参考图像生成状态）：
 
-![image-20240425222843497](C:\Users\23663\AppData\Roaming\Typora\typora-user-images\image-20240425222843497.png)
+![image-20240425222843497](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222843497.png)
 
 宠物画像的零样本域适应（初始状态）：
 
