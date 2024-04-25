@@ -13,9 +13,13 @@
     "owner_link": "https://github.com/bonjour-npy"
   },
   "models": {
-    "ffhq_disney": {
-      "name": "迪士尼风格人像",
-      "description": "使用 ffhq_disney 将写实人像转换为迪士尼风格人像"
+    "styleganv2_ffhq": {
+      "name": "StyleGAN 人物画像的零样本域适应",
+      "description": "使用 Prompt Learning 技术实现在 FFHQ 数据上预训练的 StyleGAN 模型的零样本跨域适应"
+    },
+    "styleganv2_afhq": {
+      "name": "StyleGAN 宠物画像的零样本域适应",
+      "description": "使用 Prompt Learning 技术实现在 AFHQ 数据上预训练的 StyleGAN 模型的零样本跨域适应"
     },
     "starganv2_afhq": {
       "name": "StarGAN 宠物图像",

@@ -4,7 +4,6 @@ import numpy as np
 import clip
 from PIL import Image
 import utils.text_templates as text_templates
-from utils.text_templates import imagenet_templates, part_templates
 
 
 class DirectionLoss(torch.nn.Module):
@@ -85,7 +84,8 @@ class CLIPLoss(torch.nn.Module):
         images = self.preprocess_cnn(images).to(self.device)
         return self.model_cnn.encode_image(images)
 
-    def distance_with_templates(self, img: torch.Tensor, class_str: str, templates=imagenet_templates) -> torch.Tensor:
+    def distance_with_templates(self, img: torch.Tensor, class_str: str,
+                                templates=text_templates.imagenet_templates) -> torch.Tensor:
 
         text_features = self.get_text_features(class_str, templates)
         image_features = self.get_image_features(img)
@@ -94,7 +94,8 @@ class CLIPLoss(torch.nn.Module):
 
         return 1. - similarity
 
-    def get_text_features(self, class_str: str, templates=imagenet_templates, norm: bool = True) -> torch.Tensor:
+    def get_text_features(self, class_str: str, templates=text_templates.imagenet_templates,
+                          norm: bool = True) -> torch.Tensor:
         """
         :param class_str:
         :param templates: 默认的templates是在utils/text_templates.py中写好的imagenet_templates
@@ -127,7 +128,8 @@ class CLIPLoss(torch.nn.Module):
 
         return text_features
 
-    def simple_get_text_features(self, class_str: str, templates=imagenet_templates, norm: bool = True) -> torch.Tensor:
+    def simple_get_text_features(self, class_str: str, templates=text_templates.imagenet_templates,
+                                 norm: bool = True) -> torch.Tensor:
 
         tokens = clip.tokenize(class_str).to(self.device)
 
@@ -213,7 +215,7 @@ class CLIPLoss(torch.nn.Module):
 
         return self.angle_loss(cos_img_angle, cos_text_angle)
 
-    def compose_text_with_templates(self, text: str, templates=imagenet_templates) -> list:
+    def compose_text_with_templates(self, text: str, templates=text_templates.imagenet_templates) -> list:
 
         return [template.format(text) for template in templates]
 
@@ -642,7 +644,7 @@ class CLIPLoss(torch.nn.Module):
 
     def patch_scores(self, img: torch.Tensor, class_str: str, patch_centers, patch_size: int) -> torch.Tensor:
 
-        parts = self.compose_text_with_templates(class_str, part_templates)
+        parts = self.compose_text_with_templates(class_str, text_templates.part_templates)
         tokens = clip.tokenize(parts).to(self.device)
         text_features = self.encode_text(tokens).detach()
 
@@ -668,8 +670,8 @@ class CLIPLoss(torch.nn.Module):
                                target_class: str) -> torch.Tensor:
 
         if self.patch_text_directions is None:
-            src_part_classes = self.compose_text_with_templates(source_class, part_templates)
-            target_part_classes = self.compose_text_with_templates(target_class, part_templates)
+            src_part_classes = self.compose_text_with_templates(source_class, text_templates.part_templates)
+            target_part_classes = self.compose_text_with_templates(target_class, text_templates.part_templates)
 
             parts_classes = list(zip(src_part_classes, target_part_classes))
 

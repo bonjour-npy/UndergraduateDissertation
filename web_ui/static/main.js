@@ -80,6 +80,8 @@ function showErrorMessage(message, duration = 5) {
 async function StyleGANv2Generate() {
     let form = new FormData();
     let seed = document.getElementById('seed').value;
+    let tar_style = document.getElementById('y').value;
+    // let y = document.getElementById('y').value;
     let isRef = document.getElementById("refRadio").checked;
     let mode = "latent";  // 使用随机种子生成
     if (isRef) {
@@ -89,7 +91,8 @@ async function StyleGANv2Generate() {
         form.append("ref_img", ref_img, "ref_img");
         // form.append("ref_img_url", ref_img_url);
     }
-    form.append("model", "ffhq_disney");
+    form.append("tar_style", tar_style);
+    form.append("model", "styleganv2_ffhq");
     form.append("seed", seed);
     form.append("mode", mode);
     let res = await fetch("/api/model", {

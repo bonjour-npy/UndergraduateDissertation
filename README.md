@@ -201,9 +201,9 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 ## 新增功能
 
-### 自定义图像风格迁移
+### 支持自定义图像的风格迁移
 
-新增了自定义图像风格迁移功能。
+新增了对自定义图像进行风格迁移的功能。
 
  [HyperStyle ](https://yuval-alaluf.github.io/hyperstyle/)中的 e4e encoder 将自定义的真实图像编码至 StyleGAN2 中的 W 空间生成 latent codes，再将其分别输入至源域生成器以及目标域生成器以代替原始的从正态分布中 sample 出的随机向量生成的 `w_codes`，从而得到相应的图片。其中 e4e encoder 来源于 HyperStyle 提供的预训练 checkpoint。
 
@@ -215,6 +215,23 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 2. 第二次尝试使用了 `restyle_e4e_encoder`，但是没有使用 dlib 进行 alignment，也没有使用 restyle 模型在反演时使用的多次进行前向传播来修正 latent code 的策略。此次尝试虽然反演出了合理的人像，但是人像的特征保存能力非常弱。
 3. 第三次尝试解决了上一次发现的问题，加入 dlib 提供的 landmark 检测以实现 alignment，并且使用 `run_loop` 函数在 restyle_e4e_encoder 中进行多次前向传播以修正得到的 W 空间的 latent code，效果较好。
 4. 对比 pSp 和 e4e encoder，pSp 对人脸图像的还原能力较强，但是会导致目标域图像具有随机的彩色光晕。
+
+### Web UI
+
+参考 MIT 开源项目 [pytorch-deployment](https://github.com/songquanpeng/pytorch-deployment) 进行生成模型的 Web UI 部署。参考项目使用的是 [StarGANv2](https://github.com/clovaai/stargan-v2) 模型，对其进行优化使得其可以部署 StyleGAN 模型，每个单独的 HTML 网页可以完成两种功能：
+
+1. 使用参考图像进行零样本跨域适应
+2. 直接使用随机数生成源域图像并进行零样本跨域适应
+
+UI 独立代码可以参考本人仓库 [stylegan-ui](https://github.com/bonjour-npy/stylegan-ui)，但功能有限，完整的 UI 代码已经合并到主程序中，请参考 `./web_ui` 中的具体代码。
+
+部分效果图：
+
+![image-20240425174213119](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425174213119.png)
+
+![image-20240425174232964](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425174232964.png)
+
+![image-20240425174325028](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425174325028.png)
 
 ## 问题提出与改进
 

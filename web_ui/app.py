@@ -1,8 +1,7 @@
-import werkzeug
 from flask import Flask, render_template, send_from_directory, request
 from munch import Munch
 
-from .models import StarGANv2, StyleGANv2
+from web_ui.models import StarGANv2, StyleGANv2
 from web_ui.utils import load_cfg, cache_path
 
 cfg = load_cfg()
@@ -28,10 +27,7 @@ def page_not_found(e):
 def model_page(model_id):
     if model_id in cfg.models:
         model = cfg.models[model_id]
-        if model_id == "starganv2_afhq":
-            return render_template(f"{model_id}.html", title=model['name'], description=model['description'])
-        else:
-            return render_template(f'generator.html', title=model['name'], description=model['description'])
+        return render_template(f"{model_id}.html", title=model['name'], description=model['description'])
     else:
         return render_template('index.html', message=f'No such model: {model_id}.', is_warning=True)
 
@@ -48,10 +44,9 @@ def model_inference():
         model_name = request.form['model']
         if model_name == 'starganv2_afhq':
             res = StarGANv2.controller(request)
-        #######################
-        # Add styleganv2 here #
-        #######################
-        if model_name == 'ffhq_disney':
+        if model_name == 'styleganv2_ffhq':  # request.form['model']
+            res = StyleGANv2.controller(request)
+        if model_name == 'styleganv2_afhq':
             res = StyleGANv2.controller(request)
         else:
             res.message = f"no such model: {model_name}"
@@ -74,8 +69,8 @@ def predict(model_name):
     }
 
 
+# StarGANv2.init()
 StyleGANv2.init()
-StarGANv2.init()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=cfg.port)
+    app.run(host='0.0.0.0', port=cfg.port, debug=True)
