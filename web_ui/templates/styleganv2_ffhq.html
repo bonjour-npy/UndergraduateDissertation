@@ -1,0 +1,109 @@
+{% include './partials/header.html' %}
+
+<div class="normal-container" style="font-family: Helvetica, sans-serif">
+    {% include './partials/message.html' %}
+    <div>
+        <div class="page-card-title" style="margin-bottom: 16px; font-weight: bold">{{ title }}</div>
+        <article class="message">
+            <div class="message-body">
+                {{ description }}
+            </div>
+        </article>
+        <article id="errorMessage" class="message is-danger" style="display: None">
+            <div class="message-body">
+
+            </div>
+        </article>
+        <div class="content-tab">
+            <div class="columns">
+                <div class="column">
+                    <div class="field">
+                        <label class="label">目标域风格（Target Domain Style）</label>
+                        <div class="control">
+                            <div class="select">
+                                <select id="y" name="y" style="font-family: Helvetica, sans-serif">
+                                    <option value="" disabled selected>请选择目标域风格</option>
+                                    <option value="disney">disney</option>
+                                    <option value="wall_painting">wall_painting</option>
+                                    <option value="anime_painting">anime_painting</option>
+                                    <option value="tolkien_elf">tolkien_elf</option>
+                                    <option value="ukiyo-e">ukiyo-e</option>
+                                    <option value="werewolf">werewolf</option>
+                                    <option value="pixar_character">pixar_character</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="field">
+                        <label class="label">生成模式（Generation Mode）</label>
+                        <div class="control">
+                            <label class="radio">
+                                <input type="radio" name="mode" value="reference" id="refRadio" checked>
+                                使用参考图像
+                            </label>
+                            <label class="radio">
+                                <input type="radio" name="mode" value="latent">
+                                使用随机种子
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="field">
+                        <label class="label">随机种子（Random Seed）</label>
+                        <div class="control">
+                            <input class="input" id="seed" type="text" placeholder="请输入随机种子">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="columns is-desktop">
+                <div class="column">
+                    <div class="field">
+                        <label class="label" style="margin-top: 1em">参考图像（Reference Image）</label>
+                        <div class="control">
+                            <figure class="image is-1024x1024" style="margin-bottom: 10px">
+                                <img src="{{ url_for('static', filename='waiting.png') }}" alt="ref"
+                                     id="showRefImage" width="1024" height="1024">
+                            </figure>
+                            <input id="refImage" name="ref_image" type="file" accept="image/*" style="display: none">
+                            <input type="submit" class="button is-light" value="选择参考图像（Select）"
+                                   style="font-weight: bold" onclick="submitRefImage()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="column">
+                    <div class="field">
+                        <label class="label" style="margin-top: 1em">源域图像（Source Domain Image）</label>
+                        <div class="control">
+                            <figure class="image is-1024x1024" style="margin-bottom: 10px">
+                                <img src="{{ url_for('static', filename='waiting.png') }}" alt="src"
+                                     id="showSrcImage" width="1024" height="1024">
+                            </figure>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="column">
+                    <div class="field">
+                        <label class="label" style="margin-top: 1em">目标域图像（Target Domain Image）</label>
+                        <div class="control">
+                            <figure class="image is-1024x1024" style="margin-bottom: 10px">
+                                <img src="{{ url_for('static', filename='waiting.png') }}" alt="fake"
+                                     id="showResImage" width="1024" height="1024">
+                            </figure>
+                            <input type="submit" class="button is-light" value="开始生成（Generate）"
+                                   style="font-weight: bold" onclick="StyleGANv2Generate()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include './partials/footer.html' %}

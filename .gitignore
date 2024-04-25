@@ -9,3 +9,6 @@ dataset
 desired_image
 archived_scripts
 Supplementary Materials
+web_ui/cache
+web_ui/data
+__pycache__/
