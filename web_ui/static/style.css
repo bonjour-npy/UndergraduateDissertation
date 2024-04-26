@@ -28,11 +28,7 @@ a {
     padding-bottom: 4rem;
 }
 
-#footer {
-    height: 4rem;
-}
-
-#footer a {
+#footer a {;
     color: black;
 }
 
@@ -69,7 +65,7 @@ code {
 }
 
 .nav-shadow {
-    box-shadow: 0 2px 3px rgba(26, 26, 26, .1);
+    box-shadow: 0 1px 1px rgba(26, 26, 26, .1);
 }
 
 .box .article {
@@ -266,7 +262,8 @@ span.line {
 
 .banner img {
     width: 100%; /* Stretch the image to cover the full width of the banner */
-    opacity: 0.9; /* Add a slight transparency to the image */
+    opacity: 0.6; /* Add a slight transparency to the image */
+    filter: blur(2px);
 }
 
 
@@ -277,8 +274,8 @@ span.line {
     left: 0; /* Align to left of the banner */
     width: 100%; /* Stretch to full width of the banner */
     height: 100%; /* Stretch to full height of the banner */
-    color: whitesmoke; /* Set text color to white for contrast */
-    text-shadow: 1px 1px 2px black;
+    color: black; /* Set text color to white for contrast */
+    text-shadow: 1px 1px 2px whitesmoke;
     align-items: center; /* Center content vertically */
 }
 
@@ -294,8 +291,6 @@ span.line {
     line-height: 1.5; /* Adjust line spacing for better readability */
 }
 
-/* 样式调整，确保每列元素之间的间距相同 */
-/* 设置每个 column 的样式 */
 .column {
     text-align: center; /* 居中文本内容 */
     padding: 1em; /* 添加内边距以增加内容与列边界之间的间距 */
