@@ -199,6 +199,40 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
    评估图像的特征保存能力
 
+#### 定量分析结果
+
+IS（Inception Score）
+
+| 数据集 |      源域→目标域      | NADA | IPL  | IPL* |
+| :----: | :-------------------: | :--: | ---- | ---- |
+|  FFHQ  |     Photo→Disney      |      |      |      |
+|  FFHQ  | Photo→Anime Painting  |      |      |      |
+|  FFHQ  |  Photo→Wall painting  |      |      |      |
+|  FFHQ  |     Photo→Ukiyo-e     |      |      |      |
+|  FFHQ  | Photo→Pixar character |      |      |      |
+|  FFHQ  |   Photo→Tolkien elf   |      |      |      |
+|  FFHQ  |    Photo→Werewolf     |      |      |      |
+|  AFHQ  |     Photo→Cartoon     |      |      |      |
+|  AFHQ  |   Photo→Pointillism   |      |      |      |
+|  AFHQ  |     Photo→Cubism      |      |      |      |
+|        |                       |      |      |      |
+
+FID（Fréchet Inception Distance）
+
+| 数据集 |      源域→目标域      | NADA | IPL  | IPL* |
+| :----: | :-------------------: | :--: | ---- | ---- |
+|  FFHQ  |     Photo→Disney      |      |      |      |
+|  FFHQ  | Photo→Anime Painting  |      |      |      |
+|  FFHQ  |  Photo→Wall painting  |      |      |      |
+|  FFHQ  |     Photo→Ukiyo-e     |      |      |      |
+|  FFHQ  | Photo→Pixar character |      |      |      |
+|  FFHQ  |   Photo→Tolkien elf   |      |      |      |
+|  FFHQ  |    Photo→Werewolf     |      |      |      |
+|  AFHQ  |     Photo→Cartoon     |      |      |      |
+|  AFHQ  |   Photo→Pointillism   |      |      |      |
+|  AFHQ  |     Photo→Cubism      |      |      |      |
+|        |                       |      |      |      |
+
 ## 新增功能
 
 ### 支持自定义图像的风格迁移
