@@ -408,6 +408,30 @@ class TrainOptions(object):
             help="text label of target domain"
         )
 
+        self.parser.add_argument(
+            "--src_ckpt",
+            type=str,
+            help=""
+        )
+
+        self.parser.add_argument(
+            "--nada_ckpt",
+            type=str,
+            help=""
+        )
+
+        self.parser.add_argument(
+            "--ipl_improved_ckpt",
+            type=str,
+            help=""
+        )
+
+        self.parser.add_argument(
+            "--ipl_ckpt",
+            type=str,
+            help=""
+        )
+
     def parse(self):
         opts = self.parser.parse_args()
 

@@ -155,6 +155,8 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 ## 定量分析指标
 
+测试所用 nada 权重 Google Drive 链接：[StyleGAN-NADA Models](https://drive.google.com/drive/folders/1Z76nD8pXIL2O5f6xV8VjM4DUCmhbzn0l)
+
 参考文献：[GAN 的几种评价指标](https://blog.csdn.net/qq_35586657/article/details/98478508)
 
 1. Inception Score（IS）
@@ -203,35 +205,35 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 #### 定量分析结果
 
-IS（Inception Score）
+**IS（Inception Score）↑**
 
-| 数据集 |      源域→目标域      | NADA | IPL  | IPL* |
-| :----: | :-------------------: | :--: | ---- | ---- |
-|  FFHQ  |     Photo→Disney      |      |      |      |
-|  FFHQ  | Photo→Anime Painting  |      |      |      |
-|  FFHQ  |  Photo→Wall painting  |      |      |      |
-|  FFHQ  |     Photo→Ukiyo-e     |      |      |      |
-|  FFHQ  | Photo→Pixar character |      |      |      |
-|  FFHQ  |   Photo→Tolkien elf   |      |      |      |
-|  FFHQ  |    Photo→Werewolf     |      |      |      |
-|  AFHQ  |     Photo→Cartoon     |      |      |      |
-|  AFHQ  |   Photo→Pointillism   |      |      |      |
-|  AFHQ  |     Photo→Cubism      |      |      |      |
+| 数据集 |      源域→目标域      | NADA  | IPL   | IPL*      |
+| :----: | :-------------------: | :---: | ----- | --------- |
+|  FFHQ  |     Photo→Disney      | 2.296 | 2.642 | **2.701** |
+|  FFHQ  | Photo→Anime Painting  | 2.320 | 2.464 | **2.578** |
+|  FFHQ  |  Photo→Wall painting  |       |       |           |
+|  FFHQ  |     Photo→Ukiyo-e     | 2.489 | 2.715 | **2.851** |
+|  FFHQ  | Photo→Pixar character |       |       |           |
+|  FFHQ  |   Photo→Tolkien elf   |       |       |           |
+|  FFHQ  |    Photo→Werewolf     | 2.173 | 2.482 | **2.517** |
+|  AFHQ  |     Photo→Cartoon     |       |       |           |
+|  AFHQ  |   Photo→Pointillism   |       |       |           |
+|  AFHQ  |     Photo→Cubism      |       |       |           |
 
-FID（Fréchet Inception Distance）
+**SFID（Single Fréchet Inception Distance）↓**
 
-| 数据集 |      源域→目标域      | NADA | IPL  | IPL* |
-| :----: | :-------------------: | :--: | ---- | ---- |
-|  FFHQ  |     Photo→Disney      |      |      |      |
-|  FFHQ  | Photo→Anime Painting  |      |      |      |
-|  FFHQ  |  Photo→Wall painting  |      |      |      |
-|  FFHQ  |     Photo→Ukiyo-e     |      |      |      |
-|  FFHQ  | Photo→Pixar character |      |      |      |
-|  FFHQ  |   Photo→Tolkien elf   |      |      |      |
-|  FFHQ  |    Photo→Werewolf     |      |      |      |
-|  AFHQ  |     Photo→Cartoon     |      |      |      |
-|  AFHQ  |   Photo→Pointillism   |      |      |      |
-|  AFHQ  |     Photo→Cubism      |      |      |      |
+| 数据集 |      源域→目标域      | NADA | IPL  | IPL*   |
+| :----: | :-------------------: | :--: | ---- | ------ |
+|  FFHQ  |     Photo→Disney      |  84  | 58   | **54** |
+|  FFHQ  | Photo→Anime Painting  |      |      |        |
+|  FFHQ  |  Photo→Wall painting  |      |      |        |
+|  FFHQ  |     Photo→Ukiyo-e     |      |      |        |
+|  FFHQ  | Photo→Pixar character |      |      |        |
+|  FFHQ  |   Photo→Tolkien elf   |      |      |        |
+|  FFHQ  |    Photo→Werewolf     |      |      |        |
+|  AFHQ  |     Photo→Cartoon     |      |      |        |
+|  AFHQ  |   Photo→Pointillism   |      |      |        |
+|  AFHQ  |     Photo→Cubism      |      |      |        |
 
 ## 新增功能
 
@@ -265,11 +267,11 @@ UI 独立代码可以参考本人仓库 [stylegan-ui](https://github.com/bonjour
 
 主页：
 
-![image-20240425222721486](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222721486.png)
+![image-20240426191139926](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240426191139926.png)
 
 人物画像的零样本域适应（初始状态）：
 
-![image-20240425222814145](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222814145.png)
+![image-20240426191201479](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240426191201479.png)
 
 人物画像的零样本域适应（使用参考图像生成状态）：
 
@@ -277,7 +279,7 @@ UI 独立代码可以参考本人仓库 [stylegan-ui](https://github.com/bonjour
 
 宠物画像的零样本域适应（初始状态）：
 
-![image-20240425223239412](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425223239412.png)
+![image-20240426191227686](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240426191227686.png)
 
 宠物画像的零样本域适应（使用随机数生成状态）：
 
