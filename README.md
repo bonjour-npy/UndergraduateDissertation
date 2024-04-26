@@ -165,14 +165,16 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
    多样性： 如果一个模型能生成足够多样的图片，那么它生成的图片在各个类别中的分布应该是平均的，假设生成了 10000 张图片，那么最理想的情况是，1000 类中每类生成了 10 张。转换成术语，就是生成图片在所有类别概率的边缘分布 $p(y)$ 熵很大（均匀分布）。
 
-   因此，对于 IS 我们需要求的两个量就是 $p(y|x)$ 和 $p(y)$。实际中，选取大量生成样本，用经验分布模拟 $p(y)$：
-   $$
-   \hat{p}(y)=\frac{1}{N}\sum_{i=1}^{N}p(y|\mathbf{x}^{(i)})
-   $$
+   因此，对于 IS 我们需要求的两个量就是 $p(y|x)$​ 和 $p(y)$​。实际中，选取大量生成样本，用经验分布模拟 $p(y)$​：
+
+   $$\hat{p}(y)=\frac{1}{N}\sum_{i=1}^{N}p(y|\mathbf{x}^{(i)})$$​
+   
    Inception Score 的完整公式如下：
-   $$
-   \mathbf{IS}(G)=\exp\left(\mathbb{E}_{\mathbf{x}\sim p_g}D_{KL}\left(p(y|\mathbf{x})||p(y)\right)\right)
-   $$
+
+   $$IS=\exp\left(\mathbb{E}_x[KL(p(y|x)||p(y))]\right)$$​
+   
+   其中 $\mathbb{E}_x$​ 表示对所有图像的期望，$KL(p(y|x)||p(y))$​ 表示每张图像的 KL 散度，$\exp$​​ 表示取指数。
+
    通常计算 Inception Score 时，会生成 50000 个图片，然后把它分成 10 份，每份 5000 个，分别代入公式计算 10 次 Inception Score，再计算均值和方差，作为最终的衡量指标（均值±方差）。但是 5000 个样本往往不足以得到准确的边缘分布 $p(y)$，尤其是像 ImageNet 这种包含 1000 个类的数据集。
 
    StyleGAN-nada 以及 IPL 在经过 batch_size 为 2，iteration 为 300 的训练后（其中 IPL 的 Mapper 是以 batch_size 为 32，iteration 为 300 进行训练的），二者的 IS 分别为 `(2.2960, 0.2042)` 以及 `(2.6420, 0.1959)`。
@@ -215,7 +217,6 @@ IS（Inception Score）
 |  AFHQ  |     Photo→Cartoon     |      |      |      |
 |  AFHQ  |   Photo→Pointillism   |      |      |      |
 |  AFHQ  |     Photo→Cubism      |      |      |      |
-|        |                       |      |      |      |
 
 FID（Fréchet Inception Distance）
 
@@ -231,7 +232,6 @@ FID（Fréchet Inception Distance）
 |  AFHQ  |     Photo→Cartoon     |      |      |      |
 |  AFHQ  |   Photo→Pointillism   |      |      |      |
 |  AFHQ  |     Photo→Cubism      |      |      |      |
-|        |                       |      |      |      |
 
 ## 新增功能
 
