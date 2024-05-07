@@ -23,7 +23,7 @@ def init():
                       "tolkien_elf": "../adapted_generator/ffhq/tolkien_elf.pt",
                       "ukiyo-e": "../adapted_generator/ffhq/ukiyo-e.pt",
                       "werewolf": "../adapted_generator/ffhq/werewolf.pt",
-                      "pixar_character": "../adapted_generator/ffhq/pixar_character.pt",},
+                      "pixar_character": "../adapted_generator/ffhq/pixar_character.pt", },
         "restyle_e4e_ckpt": "../pretrained_models/restyle_e4e_ffhq_encode.pt",
         "img_size": 1024,
         "channel_multiplier": 2,

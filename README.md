@@ -33,7 +33,7 @@ pip install git+https://github.com/openai/CLIP.git
 
 ### prompts 的初始化
 
-`ctx_init `参数用于初始化 prompts，官方提供的演示 context 是`a photo of a`。
+`ctx_init` 参数用于初始化 prompts，官方提供的演示 context 是`a photo of a`。
 
 ```python
 source_prompts = [prompt_prefix + " " + args.source_class]
@@ -155,6 +155,8 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 ## 定量分析指标
 
+测试所用 nada 权重 Google Drive 链接：[StyleGAN-NADA Models](https://drive.google.com/drive/folders/1Z76nD8pXIL2O5f6xV8VjM4DUCmhbzn0l)
+
 参考文献：[GAN 的几种评价指标](https://blog.csdn.net/qq_35586657/article/details/98478508)
 
 1. Inception Score（IS）
@@ -203,7 +205,7 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 #### 定量分析结果
 
-IS（Inception Score）
+**IS（Inception Score）↑**
 
 | 数据集 |      源域→目标域      | NADA | IPL  | IPL* |
 | :----: | :-------------------: | :--: | ---- | ---- |
@@ -218,7 +220,7 @@ IS（Inception Score）
 |  AFHQ  |   Photo→Pointillism   |      |      |      |
 |  AFHQ  |     Photo→Cubism      |      |      |      |
 
-FID（Fréchet Inception Distance）
+**SFID（Single Fréchet Inception Distance）↓**
 
 | 数据集 |      源域→目标域      | NADA | IPL  | IPL* |
 | :----: | :-------------------: | :--: | ---- | ---- |
@@ -265,19 +267,23 @@ UI 独立代码可以参考本人仓库 [stylegan-ui](https://github.com/bonjour
 
 主页：
 
-![image-20240425222721486](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222721486.png)
+![image-20240426191139926](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240426191139926.png)
 
 人物画像的零样本域适应（初始状态）：
 
-![image-20240425222814145](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222814145.png)
+![image-20240426191201479](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240426191201479.png)
 
 人物画像的零样本域适应（使用参考图像生成状态）：
 
 ![image-20240425222843497](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222843497.png)
 
+人物画像的零样本域适应（使用随机数生成效果）：
+
+![image-20240506160113646](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240506160113646.png)
+
 宠物画像的零样本域适应（初始状态）：
 
-![image-20240425223239412](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425223239412.png)
+![image-20240426191227686](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240426191227686.png)
 
 宠物画像的零样本域适应（使用随机数生成状态）：
 
@@ -370,10 +376,7 @@ IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 pro
 英文提示词：
 
 ```
-For the task of converting a {source class} photo into a {target_class} photo,
-provide some text prompts describing the distinctive features of Disney character portraits.
-Put the generated 60 prompts into the same Python list, with each prompt as a string element of the list,
-and output the entire Python list.
+For the task of converting a {source_class} photo into a {target_class} photo, provide 60 text prompts describing the distinctive features of {target_class} photos. Put the generated 60 prompts into the same Python list, with each prompt as a string element of the list, and output the entire Python list.
 ```
 
 #### 对 global_clip_loss 的改进

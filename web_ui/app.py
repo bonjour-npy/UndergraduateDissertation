@@ -1,8 +1,9 @@
 from flask import Flask, render_template, send_from_directory, request
 from munch import Munch
+from wsgiref.simple_server import make_server
 
 from web_ui.models import StarGANv2, StyleGANv2, StyleGANv2_AFHQ
-from web_ui.utils import load_cfg, cache_path
+from web_ui.util import load_cfg, cache_path
 
 cfg = load_cfg()
 app = Flask(__name__)
@@ -74,4 +75,7 @@ StyleGANv2.init()
 StyleGANv2_AFHQ.init()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=cfg.port, debug=True)
+    httpd = make_server('0.0.0.0', 5000, app)
+    print("Server on Click http://localhost:5000/ to start")
+    httpd.serve_forever()
+    # app.run(host='0.0.0.0', port=cfg.port, debug=True)

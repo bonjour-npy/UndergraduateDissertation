@@ -466,22 +466,22 @@ class CLIPLoss(torch.nn.Module):
             text_target_features = delta_target_features / delta_target_features.clone().norm(dim=-1, keepdim=True)
             # 生成的目标域prompts，(batch_size, 1, n_dim)
 
-            ###############################
+            ################################
             # 计算改进设计的prompts的文字编码 #
-            ###############################
+            ################################
             prompt_target_features = self.get_prompt_features(prompts=prompts).mean(dim=0)  # 改进设计的prompts特征
 
             text_target_features = text_target_features.squeeze(1)  # (batch_size, n_dim)
             text_source_features = text_source_features.squeeze(1)  # (batch_size, n_dim)
 
-            ###############################
+            ################################
             # 预处理改进设计的prompts文字特征 #
-            ###############################
+            ################################
             prompt_target_features = prompt_target_features.unsqueeze(0).expand(len(text_target_features), -1)
 
-            ################################################################################
+            #################################################################################
             # 计算目标域prompts与改进设计prompts的directional loss作为新的domain regularization #
-            ################################################################################
+            #################################################################################
             prompt_loss = self.direction_loss(text_target_features, prompt_target_features).mean()
 
             # cosine similarity as logits
@@ -572,15 +572,15 @@ class CLIPLoss(torch.nn.Module):
             # 将生成的目标域prompts与模板+域标签做direction_loss
             target_loss = self.direction_loss(text_target_features, templates_target_features).mean()
 
-            ###############################
+            ################################
             # 预处理改进设计的prompts文字特征 #
-            ###############################
+            ################################
             prompt_target_features = self.get_prompt_features(prompts=prompts).mean(dim=0)  # 改进设计的prompts特征
             prompt_target_features = prompt_target_features.unsqueeze(0).expand(len(text_target_features), -1)
 
-            ################################################################################
+            #################################################################################
             # 计算目标域prompts与改进设计prompts的directional loss作为新的domain regularization #
-            ################################################################################
+            #################################################################################
             prompt_loss = self.direction_loss(text_target_features, prompt_target_features).mean()
 
             # cosine similarity as logits
