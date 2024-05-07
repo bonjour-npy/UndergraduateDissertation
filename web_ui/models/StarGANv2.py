@@ -4,7 +4,7 @@ from munch import Munch
 from torchvision import transforms
 
 from .StarGANv2_model import Generator, MappingNetwork, StyleEncoder
-from web_ui.utils import load_weights, set_eval_mode, save_images, to_device
+from web_ui.util import load_weights, set_eval_mode, save_images, to_device
 
 nets = Munch()
 transform_list = []

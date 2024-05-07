@@ -33,7 +33,7 @@ pip install git+https://github.com/openai/CLIP.git
 
 ### prompts 的初始化
 
-`ctx_init `参数用于初始化 prompts，官方提供的演示 context 是`a photo of a`。
+`ctx_init` 参数用于初始化 prompts，官方提供的演示 context 是`a photo of a`。
 
 ```python
 source_prompts = [prompt_prefix + " " + args.source_class]
@@ -207,33 +207,33 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
 
 **IS（Inception Score）↑**
 
-| 数据集 |      源域→目标域      | NADA  | IPL   | IPL*      |
-| :----: | :-------------------: | :---: | ----- | --------- |
-|  FFHQ  |     Photo→Disney      | 2.296 | 2.642 | **2.701** |
-|  FFHQ  | Photo→Anime Painting  | 2.320 | 2.464 | **2.578** |
-|  FFHQ  |  Photo→Wall painting  |       |       |           |
-|  FFHQ  |     Photo→Ukiyo-e     | 2.489 | 2.715 | **2.851** |
-|  FFHQ  | Photo→Pixar character |       |       |           |
-|  FFHQ  |   Photo→Tolkien elf   |       |       |           |
-|  FFHQ  |    Photo→Werewolf     | 2.173 | 2.482 | **2.517** |
-|  AFHQ  |     Photo→Cartoon     |       |       |           |
-|  AFHQ  |   Photo→Pointillism   |       |       |           |
-|  AFHQ  |     Photo→Cubism      |       |       |           |
+| 数据集 |      源域→目标域      | NADA | IPL  | IPL* |
+| :----: | :-------------------: | :--: | ---- | ---- |
+|  FFHQ  |     Photo→Disney      |      |      |      |
+|  FFHQ  | Photo→Anime Painting  |      |      |      |
+|  FFHQ  |  Photo→Wall painting  |      |      |      |
+|  FFHQ  |     Photo→Ukiyo-e     |      |      |      |
+|  FFHQ  | Photo→Pixar character |      |      |      |
+|  FFHQ  |   Photo→Tolkien elf   |      |      |      |
+|  FFHQ  |    Photo→Werewolf     |      |      |      |
+|  AFHQ  |     Photo→Cartoon     |      |      |      |
+|  AFHQ  |   Photo→Pointillism   |      |      |      |
+|  AFHQ  |     Photo→Cubism      |      |      |      |
 
 **SFID（Single Fréchet Inception Distance）↓**
 
-| 数据集 |      源域→目标域      | NADA | IPL  | IPL*   |
-| :----: | :-------------------: | :--: | ---- | ------ |
-|  FFHQ  |     Photo→Disney      |  84  | 58   | **54** |
-|  FFHQ  | Photo→Anime Painting  |      |      |        |
-|  FFHQ  |  Photo→Wall painting  |      |      |        |
-|  FFHQ  |     Photo→Ukiyo-e     |      |      |        |
-|  FFHQ  | Photo→Pixar character |      |      |        |
-|  FFHQ  |   Photo→Tolkien elf   |      |      |        |
-|  FFHQ  |    Photo→Werewolf     |      |      |        |
-|  AFHQ  |     Photo→Cartoon     |      |      |        |
-|  AFHQ  |   Photo→Pointillism   |      |      |        |
-|  AFHQ  |     Photo→Cubism      |      |      |        |
+| 数据集 |      源域→目标域      | NADA | IPL  | IPL* |
+| :----: | :-------------------: | :--: | ---- | ---- |
+|  FFHQ  |     Photo→Disney      |      |      |      |
+|  FFHQ  | Photo→Anime Painting  |      |      |      |
+|  FFHQ  |  Photo→Wall painting  |      |      |      |
+|  FFHQ  |     Photo→Ukiyo-e     |      |      |      |
+|  FFHQ  | Photo→Pixar character |      |      |      |
+|  FFHQ  |   Photo→Tolkien elf   |      |      |      |
+|  FFHQ  |    Photo→Werewolf     |      |      |      |
+|  AFHQ  |     Photo→Cartoon     |      |      |      |
+|  AFHQ  |   Photo→Pointillism   |      |      |      |
+|  AFHQ  |     Photo→Cubism      |      |      |      |
 
 ## 新增功能
 
@@ -276,6 +276,10 @@ UI 独立代码可以参考本人仓库 [stylegan-ui](https://github.com/bonjour
 人物画像的零样本域适应（使用参考图像生成状态）：
 
 ![image-20240425222843497](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240425222843497.png)
+
+人物画像的零样本域适应（使用随机数生成效果）：
+
+![image-20240506160113646](https://raw.githubusercontent.com/bonjour-npy/Image-Hosting-Service/main/typora_imagesimage-20240506160113646.png)
 
 宠物画像的零样本域适应（初始状态）：
 
@@ -372,10 +376,7 @@ IPL 方法对 Mapper 学习到的 prompts 除了（1）使用对比学习使 pro
 英文提示词：
 
 ```
-For the task of converting a {source class} photo into a {target_class} photo,
-provide some text prompts describing the distinctive features of Disney character portraits.
-Put the generated 60 prompts into the same Python list, with each prompt as a string element of the list,
-and output the entire Python list.
+For the task of converting a {source_class} photo into a {target_class} photo, provide 60 text prompts describing the distinctive features of {target_class} photos. Put the generated 60 prompts into the same Python list, with each prompt as a string element of the list, and output the entire Python list.
 ```
 
 #### 对 global_clip_loss 的改进
