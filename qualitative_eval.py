@@ -51,6 +51,10 @@ def eval(args):
     generator_ipl_improved.freeze_layers()
     generator_ipl_improved.eval()
 
+    # torch.manual_seed(args.seed1)
+    # torch.cuda.manual_seed_all(args.seed1)
+    # np.random.seed(args.seed1)
+
     torch.manual_seed(args.seed2)
     torch.cuda.manual_seed_all(args.seed2)
     np.random.seed(args.seed2)
