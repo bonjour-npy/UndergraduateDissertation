@@ -175,7 +175,7 @@ stage 2 的损失函数是 CLIP Loss 类中的 `clip_directional_loss`，该损�
    
    $$IS=\exp\left(\mathbb{E}_x[KL(p(y|x)||p(y))]\right)$$
    
-   其中 $\mathbb{E}_x$ 表示对所有图像的期望，$KL(p(y|x)||p(y))$ 表示每张图像的 KL 散度，$\exp$ 表示取指数。
+   其中 $\mathbb{E}_x$ 表示对所有图像的期望， $KL(p(y|x)||p(y))$ 表示每张图像的 KL 散度， $\exp$ 表示取指数。
 
    通常计算 Inception Score 时，会生成 50000 个图片，然后把它分成 10 份，每份 5000 个，分别代入公式计算 10 次 Inception Score，再计算均值和方差，作为最终的衡量指标（均值±方差）。但是 5000 个样本往往不足以得到准确的边缘分布 $p(y)$，尤其是像 ImageNet 这种包含 1000 个类的数据集。
 
