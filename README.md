@@ -336,7 +336,7 @@ class TransformerMapperV2(nn.Module):
 
 1. `ctx_init` 在 `compute_text_features` 函数中用于定位 `eot` 层符号所表示的维度来进行投影，使得文字特征与图像特征维度相同，并不参与 `text_features` 的实际计算。但是在该函数中，Mapper 输出的 image-specific prompts 已经与域标签的嵌入表示进行了 concat。
 
-2. 在 stage 1 训练 Mapper 损失函数中，Mapper 学习到的 image-specfic prompts 在与源域标签进行 concat 并得到文字编码后，会与 ctx_init 的文字编码进行 element-wise 的相加，最后再与源域生成器输出的图片的图像编码进行对比损失计算；
+2. 在 stage 1 训练 Mapper 损失函数中，Mapper 学习到的 image-specific prompts 在与源域标签进行 concat 并得到文字编码后，会与 ctx_init 的文字编码进行 element-wise 的相加，最后再与源域生成器输出的图片的图像编码进行对比损失计算；
 
    同理，在 stage 2 训练目标域生成器时，Mapper 输出的 image-specific prompts 在分别与源域、目标域标签 concat 后送入文字编码器得到文字特征，再与 ctx_init 的文字特征进行 element-wise 相加，最后二者相减得到 text_direction。
 
