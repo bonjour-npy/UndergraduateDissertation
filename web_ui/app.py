@@ -75,7 +75,7 @@ StyleGANv2.init()
 StyleGANv2_AFHQ.init()
 
 if __name__ == '__main__':
-    httpd = make_server('0.0.0.0', 5000, app)
-    print("Server on Click http://localhost:5000/ to start")
+    httpd = make_server('0.0.0.0', 3000, app)
+    print("Server on Click http://localhost:3000/ to start")
     httpd.serve_forever()
     # app.run(host='0.0.0.0', port=cfg.port, debug=True)
