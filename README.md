@@ -4,6 +4,19 @@
 
 本篇论文主要基于 [IPL](https://arxiv.org/pdf/2304.03119.pdf) 的思想实现，并做出了一定的修改与补充。
 
+感谢 IPL 作者的开源，BibTeX 引用如下：
+
+```latex
+@InProceedings{Guo_2023_CVPR,
+    author    = {Guo, Jiayi and Wang, Chaofei and Wu, You and Zhang, Eric and Wang, Kai and Xu, Xingqian and Song, Shiji and Shi, Humphrey and Huang, Gao},
+    title     = {Zero-Shot Generative Model Adaptation via Image-Specific Prompt Learning},
+    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+    month     = {June},
+    year      = {2023},
+    pages     = {11494-11503}
+}
+```
+
 ## 依赖
 
 ### 创建 Anaconda 虚拟环境
