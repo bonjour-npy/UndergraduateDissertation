@@ -40,6 +40,84 @@ pip install git+https://github.com/openai/CLIP.git
 
 预训练的源域生成器可以通过 [Google Drive ](https://drive.google.com/drive/folders/1FW8XfDbTg9MLEodEeIl6zJEaCVyZ053L?usp=sharing)或者 [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/d/dbd0955d9a9547dc99f2/) 下载，并将其置于 `./pre_stylegan` 文件夹中。
 
+## 使用方法
+
+### Web UI 系统
+
+运行 `web_ui/app.py`，默认端口设置为 `3000`。
+
+### 图像反演功能
+
+使用图像反演功能可以将用户自主选择的图像反演至 W 空间，进一步地可以进行为用户提供两个图像反演接口，反演编码器分别使用 `e4e` 和 `pSp`。
+
+- e4e Encoder：运行 `./inference_e4e.py`
+- pSp Encoder：运行 `./inference_psp.py`
+
+### 训练
+
+根据网络具体设置运行 `./train.py` 或 `./train_improved.py` 训练自己的零样本生成模型。
+
+在第一阶段 batch_size 设置为 32、iteration 为 300，第二阶段 batch_size 设置为 2，iteration 为 300的情况下，使用以下移动端显卡训练耗时大致为 12 小时。
+
+	NVIDIA GeForce RTX 3060 Laptop GPU
+	
+	驱动程序版本:	32.0.15.5585
+	驱动程序日期:	2024/5/13
+	DirectX 版本:	12 (FL 12.1)
+	物理位置：	PCI 总线 1、设备 0、功能 0
+	
+	专用 GPU 内存：6.0 GB
+	共享 GPU 内存：15.9 GB
+
+一种可能的训练脚本参数如下所示：
+
+```python
+--frozen_gen_ckpt
+./pre_stylegan/stylegan2-ffhq-config-f.pt
+--source_model_type
+"ffhq"
+--output_interval
+100
+--save_interval
+100
+--auto_compute
+--source_class
+"photo"
+--target_class
+"disney"
+--batch_mapper
+32
+--lr_mapper
+0.05
+--iter_mapper
+300
+--ctx_init
+"a photo of a"
+--n_ctx
+4
+--lambda_l
+1
+--run_stage1
+--run_stage2
+--batch
+2
+--lr
+0.002
+--iter
+300
+--output_dir
+./output/disney_improved
+```
+
+注意，用户可能需要根据自己的需求更改部分参数，以及提示词模板（`utils/text_templates.py`）。
+
+### 测试与对比
+
+提供测试以及对比图生成脚本：
+
+- ./eval.py
+- ./comparison.py
+
 ## 概述
 
 ## 技术细节
